@@ -28,10 +28,10 @@ cd socket-server
 bun install
 
 cd ..\tablet-nextjs
-npm install
+bun install
 
 cd ..\tv-nextjs
-npm install
+bun install
 ```
 
 ## Test locally without a Raspberry Pi
@@ -53,13 +53,13 @@ bun run mock:hardware
 ```powershell
 # Terminal 3: TV display (port 3001)
 cd tv-nextjs
-npm run dev -- -p 3001
+bun run dev
 ```
 
 ```powershell
 # Terminal 4: tablet controls (port 3000)
 cd tablet-nextjs
-npm run dev -- -p 3000
+bun run dev
 ```
 
 Open:
