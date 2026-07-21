@@ -153,4 +153,7 @@ npm run build
 - **Control page returns to start after refresh** — reconnect using
   **Begin journey**; runtime data is held in React Context for the session.
 
+See `EDGE_CASES.md` for implemented failure handling, known limits, and test
+coverage.
+
 See `RASPBERRY_PI_INTEGRATION.md` for the complete hardware contract.
