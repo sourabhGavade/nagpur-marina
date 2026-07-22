@@ -21,22 +21,40 @@ until paused, stopped, overridden, or interrupted by a fail-safe.
 
 ## Install
 
-Run once in each project:
+From the repo root, install root tooling and all apps once:
 
 ```powershell
-cd socket-server
 bun install
-
-cd ..\tablet-nextjs
-bun install
-
-cd ..\tv-nextjs
-bun install
+bun run install:all
 ```
 
 ## Test locally without a Raspberry Pi
 
-Start these in separate terminals, in this order:
+From the repo root, start the server, mock hardware, TV, and tablet together:
+
+```powershell
+bun run dev:with-mock
+```
+
+Or start only the three apps (use a real Pi, or start mock hardware separately):
+
+```powershell
+bun run dev
+```
+
+Open:
+
+- Tablet: `http://localhost:3000`
+- TV: `http://localhost:3001`
+- Server health: `http://localhost:4000/health`
+
+Click **Begin journey** on the tablet. The status pills must show the Tablet,
+Hardware, and Display online before playback commands can succeed.
+
+Do not run `mock:hardware` (or `dev:with-mock`) at the same time as the real Pi
+agent. The server allows only one hardware client.
+
+To run services in separate terminals instead:
 
 ```powershell
 # Terminal 1: central server (port 4000)
@@ -61,18 +79,6 @@ bun run dev
 cd tablet-nextjs
 bun run dev
 ```
-
-Open:
-
-- Tablet: `http://localhost:3000`
-- TV: `http://localhost:3001`
-- Server health: `http://localhost:4000/health`
-
-Click **Begin journey** on the tablet. The status pills must show the Tablet,
-Hardware, and Display online before playback commands can succeed.
-
-Do not run `mock:hardware` at the same time as the real Pi agent. The server
-allows only one hardware client.
 
 ## Run on the installation network
 

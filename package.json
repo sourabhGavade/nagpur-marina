@@ -1,0 +1,12 @@
+{
+  "name": "raspberry-pi",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n server,tv,tablet -c blue,magenta,green \"bun run --cwd socket-server dev\" \"bun run --cwd tv-nextjs dev\" \"bun run --cwd tablet-nextjs dev\"",
+    "dev:with-mock": "concurrently -k -n server,mock,tv,tablet -c blue,yellow,magenta,green \"bun run --cwd socket-server dev\" \"bun run --cwd socket-server mock:hardware\" \"bun run --cwd tv-nextjs dev\" \"bun run --cwd tablet-nextjs dev\"",
+    "install:all": "bun install --cwd socket-server && bun install --cwd tablet-nextjs && bun install --cwd tv-nextjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
