@@ -25,7 +25,7 @@ export function DeviceStatuses() {
       </div>
       <div className={`connection-pill ${statusClass(hardwareOnline)}`}>
         <i />
-        Hardware {statusLabel(hardwareOnline)}
+        Raspberry Pi {statusLabel(hardwareOnline)}
       </div>
       <div className={`connection-pill ${statusClass(displayOnline)}`}>
         <i />

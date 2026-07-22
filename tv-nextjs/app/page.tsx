@@ -3,12 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 
-type PlaybackState =
-  | "idle"
-  | "preparing"
-  | "playing"
-  | "paused"
-  | "error";
+type PlaybackState = "idle" | "preparing" | "playing" | "paused" | "error";
 
 interface PrepareVideoPayload {
   transaction_id: string;
@@ -46,8 +41,7 @@ export default function DisplayPage() {
   const startedAtRef = useRef(0);
 
   const [connected, setConnected] = useState(false);
-  const [playbackState, setPlaybackState] =
-    useState<PlaybackState>("idle");
+  const [playbackState, setPlaybackState] = useState<PlaybackState>("idle");
   const [activeZone, setActiveZone] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -212,48 +206,51 @@ export default function DisplayPage() {
         }
 
         if (playTimerRef.current) clearTimeout(playTimerRef.current);
-        playTimerRef.current = setTimeout(async () => {
-          const previous = videos[activeIndexRef.current];
-          const next = videos[nextIndex];
+        playTimerRef.current = setTimeout(
+          async () => {
+            const previous = videos[activeIndexRef.current];
+            const next = videos[nextIndex];
 
-          try {
-            next.currentTime = 0;
-            next.loop = payload.loop;
-            await next.play();
+            try {
+              next.currentTime = 0;
+              next.loop = payload.loop;
+              await next.play();
 
-            const duration = payload.video_crossfade_duration_ms;
-            next.style.transition = `opacity ${duration}ms linear`;
-            previous.style.transition = `opacity ${duration}ms linear`;
-            next.style.opacity = "1";
-            previous.style.opacity = "0";
+              const duration = payload.video_crossfade_duration_ms;
+              next.style.transition = `opacity ${duration}ms linear`;
+              previous.style.transition = `opacity ${duration}ms linear`;
+              next.style.opacity = "1";
+              previous.style.opacity = "0";
 
-            window.setTimeout(() => {
-              previous.pause();
-              previous.currentTime = 0;
-            }, duration);
+              window.setTimeout(() => {
+                previous.pause();
+                previous.currentTime = 0;
+              }, duration);
 
-            activeIndexRef.current = nextIndex;
-            preparedIndexRef.current = null;
-            setRuntimeState("playing", payload.zone_id);
-            ack({
-              transaction_id: payload.transaction_id,
-              status: "success",
-              started_at_ms: Date.now(),
-            });
-          } catch (error) {
-            const message =
-              error instanceof Error ? error.message : "Playback failed";
-            setRuntimeState("error");
-            setErrorMessage(message);
-            ack({
-              transaction_id: payload.transaction_id,
-              status: "error",
-              error_code: "display_error",
-              message,
-              failed_at_ms: Date.now(),
-            });
-          }
-        }, Math.max(0, delay));
+              activeIndexRef.current = nextIndex;
+              preparedIndexRef.current = null;
+              setRuntimeState("playing", payload.zone_id);
+              ack({
+                transaction_id: payload.transaction_id,
+                status: "success",
+                started_at_ms: Date.now(),
+              });
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : "Playback failed";
+              setRuntimeState("error");
+              setErrorMessage(message);
+              ack({
+                transaction_id: payload.transaction_id,
+                status: "error",
+                error_code: "display_error",
+                message,
+                failed_at_ms: Date.now(),
+              });
+            }
+          },
+          Math.max(0, delay),
+        );
       },
     );
 
@@ -371,11 +368,7 @@ export default function DisplayPage() {
         preload="auto"
       />
 
-      <div
-        className={`display-status ${
-          connected && playbackState === "playing" ? "hidden" : ""
-        }`}
-      >
+      <div className="display-status">
         <span className={`display-dot ${connected ? "online" : ""}`} />
         <div>
           <strong>
@@ -383,11 +376,13 @@ export default function DisplayPage() {
               ? "Connecting to experience"
               : playbackState === "preparing"
                 ? "Preparing media"
-                : playbackState === "paused"
-                  ? "Playback paused"
-                : playbackState === "error"
-                  ? "Display error"
-                  : "Display ready"}
+                : playbackState === "playing"
+                  ? "Playback playing"
+                  : playbackState === "paused"
+                    ? "Playback paused"
+                    : playbackState === "error"
+                      ? "Display error"
+                      : "Display ready"}
           </strong>
           <small>
             {errorMessage ||
