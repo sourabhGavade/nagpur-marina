@@ -234,10 +234,9 @@ export class ControlController {
       Date.now() +
       this.emergencyBroadcastCount * this.emergencyBroadcastIntervalMs;
 
-    const hardware = this.registry.getHardware();
     for (let index = 0; index < this.emergencyBroadcastCount; index += 1) {
       setTimeout(() => {
-        if (hardware?.connected) {
+        for (const hardware of this.registry.getHardwareClients()) {
           hardware.emit("hardware-emergency-shutdown", {
             signal: "emergency-halt",
           });

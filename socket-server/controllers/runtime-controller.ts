@@ -1,4 +1,9 @@
-import type { ClientRegistry, AppIo, AppSocket } from "../lib/client-registry.ts";
+import {
+  EXPECTED_HARDWARE_CLIENTS,
+  type ClientRegistry,
+  type AppIo,
+  type AppSocket,
+} from "../lib/client-registry.ts";
 import { RuntimeState, type NodeRole } from "../lib/runtime-state.ts";
 import { createTransactionId, requestAck } from "../lib/transactions.ts";
 import type {
@@ -36,6 +41,16 @@ export interface RuntimeControllerOptions {
   executionLeadMs?: number;
 }
 
+type FlightKey = string;
+
+function hardwareFlightKey(clientId: string): FlightKey {
+  return `hardware:${clientId}`;
+}
+
+function displayFlightKey(): FlightKey {
+  return "display";
+}
+
 export class RuntimeController {
   readonly state = new RuntimeState();
 
@@ -46,8 +61,8 @@ export class RuntimeController {
   private readonly safeExecutionLeadMs: number;
   private readonly mediaCommandTimeoutMs: number;
   private readonly executionLeadMs: number;
-  private readonly readinessInFlight = new Set<NodeRole>();
-  private readonly failuresInFlight = new Set<NodeRole>();
+  private readonly readinessInFlight = new Set<FlightKey>();
+  private readonly failuresInFlight = new Set<FlightKey>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private running = false;
 
@@ -83,18 +98,33 @@ export class RuntimeController {
   }
 
   onNodeConnected(role: NodeRole, socket: AppSocket): void {
-    this.state.markConnected(role);
+    if (role === "hardware") {
+      this.state.markHardwareConnected(socket.data.client_id);
+    } else {
+      this.state.markDisplayConnected();
+    }
     this.broadcastStatus(role);
     void this.verifyReadiness(role, socket);
   }
 
-  onNodeDisconnected(role: NodeRole): void {
-    const wasConnected = this.state.getNode(role).connected;
-    this.state.markDisconnected(role);
+  onNodeDisconnected(role: NodeRole, clientId: string): void {
+    const flightKey =
+      role === "hardware" ? hardwareFlightKey(clientId) : displayFlightKey();
+
+    const wasConnected =
+      role === "hardware"
+        ? (this.state.getHardwareNode(clientId)?.connected ?? false)
+        : this.state.getDisplayNode().connected;
+
+    if (role === "hardware") {
+      this.state.markHardwareDisconnected(clientId);
+    } else {
+      this.state.markDisplayDisconnected();
+    }
     this.broadcastStatus(role);
 
-    if (this.running && wasConnected && !this.failuresInFlight.has(role)) {
-      void this.enterFailSafe(role, `${role} disconnected`);
+    if (this.running && wasConnected && !this.failuresInFlight.has(flightKey)) {
+      void this.enterFailSafe(role, null, `${role} disconnected`);
     }
   }
 
@@ -103,11 +133,24 @@ export class RuntimeController {
     heartbeat: { uptime_ms: number; status: "ready" | "error" },
     socket: AppSocket,
   ): void {
-    this.state.markHeartbeat(role, heartbeat.uptime_ms, heartbeat.status);
+    if (role === "hardware") {
+      this.state.markHardwareHeartbeat(
+        socket.data.client_id,
+        heartbeat.uptime_ms,
+        heartbeat.status,
+      );
+    } else {
+      this.state.markDisplayHeartbeat(heartbeat.uptime_ms, heartbeat.status);
+    }
+
+    const ready =
+      role === "hardware"
+        ? (this.state.getHardwareNode(socket.data.client_id)?.ready ?? false)
+        : this.state.getDisplayNode().ready;
 
     if (heartbeat.status === "error") {
       void this.failNode(role, socket, `${role} reported an error`);
-    } else if (!this.state.getNode(role).ready) {
+    } else if (!ready) {
       void this.verifyReadiness(role, socket);
     }
   }
@@ -170,35 +213,47 @@ export class RuntimeController {
   async applyHardwareState(
     payload: Omit<HardwareApplyStatePayload, "transaction_id">,
   ): Promise<void> {
-    const socket = this.registry.getHardware();
-    if (!socket?.connected || !this.state.isOnline("hardware")) {
+    const sockets = this.registry.getHardwareClients();
+    if (
+      sockets.length !== EXPECTED_HARDWARE_CLIENTS ||
+      !this.state.isOnline("hardware")
+    ) {
       throw new Error("hardware_offline");
     }
 
     const transactionId = createTransactionId("apply-state");
-    const result = await requestAck({
-      socket,
-      runtime: this.state,
-      transactionId,
-      timeoutMs: Math.max(
-        1_000,
-        payload.execute_at_ms - Date.now() + 1_000,
-      ),
-      schema: HardwareApplyResultSchema,
-      emit: (ack) => {
-        socket.emit(
-          "hardware-apply-state",
-          { transaction_id: transactionId, ...payload },
-          ack as SocketAck<HardwareApplyResult>,
-        );
-      },
-    });
+    const timeoutMs = Math.max(
+      1_000,
+      payload.execute_at_ms - Date.now() + 1_000,
+    );
+    const fullPayload = { transaction_id: transactionId, ...payload };
 
-    if (result.transaction_id !== transactionId) {
-      throw new Error("Hardware ACK transaction_id does not match");
-    }
-    if (result.status === "error") {
-      throw new Error(`${result.error_code}: ${result.message}`);
+    const results = await Promise.all(
+      sockets.map((socket) =>
+        requestAck({
+          socket,
+          runtime: this.state,
+          transactionId,
+          timeoutMs,
+          schema: HardwareApplyResultSchema,
+          emit: (ack) => {
+            socket.emit(
+              "hardware-apply-state",
+              fullPayload,
+              ack as SocketAck<HardwareApplyResult>,
+            );
+          },
+        }),
+      ),
+    );
+
+    for (const result of results) {
+      if (result.transaction_id !== transactionId) {
+        throw new Error("Hardware ACK transaction_id does not match");
+      }
+      if (result.status === "error") {
+        throw new Error(`${result.error_code}: ${result.message}`);
+      }
     }
   }
 
@@ -271,15 +326,19 @@ export class RuntimeController {
   }
 
   async stopNormally(): Promise<void> {
-    const hardware = this.registry.getHardware();
+    const hardwareClients = this.registry.getHardwareClients();
     const display = this.registry.getDisplay();
     this.state.invalidate();
 
     const failures: unknown[] = [];
     const tasks: Promise<unknown>[] = [];
 
-    if (hardware?.connected) tasks.push(this.sendAllOff(hardware));
-    else failures.push(new Error("hardware_offline"));
+    if (hardwareClients.length < EXPECTED_HARDWARE_CLIENTS) {
+      failures.push(new Error("hardware_offline"));
+    }
+    for (const hardware of hardwareClients) {
+      tasks.push(this.sendAllOff(hardware));
+    }
 
     if (display?.connected) tasks.push(this.stopDisplay(display));
     else failures.push(new Error("display_offline"));
@@ -322,15 +381,20 @@ export class RuntimeController {
   }
 
   async enterSystemFailSafe(reason: string): Promise<void> {
-    await this.enterFailSafe(null, reason);
+    await this.enterFailSafe(null, null, reason);
   }
 
   private async verifyReadiness(
     role: NodeRole,
     socket: AppSocket,
   ): Promise<void> {
-    if (this.readinessInFlight.has(role) || !socket.connected) return;
-    this.readinessInFlight.add(role);
+    const flightKey =
+      role === "hardware"
+        ? hardwareFlightKey(socket.data.client_id)
+        : displayFlightKey();
+
+    if (this.readinessInFlight.has(flightKey) || !socket.connected) return;
+    this.readinessInFlight.add(flightKey);
 
     const transactionId = createTransactionId(`${role}-ready`);
     const payload = {
@@ -365,14 +429,20 @@ export class RuntimeController {
       }
       if (!socket.connected) return;
 
-      this.state.markReady(role);
+      if (role === "hardware") {
+        this.state.markHardwareReady(socket.data.client_id);
+      } else {
+        this.state.markDisplayReady();
+      }
       this.broadcastStatus(role);
     } catch (error) {
-      if (
-        !this.running ||
-        !socket.connected ||
-        !this.state.getNode(role).connected
-      ) {
+      const stillConnected =
+        role === "hardware"
+          ? (this.state.getHardwareNode(socket.data.client_id)?.connected ??
+            false)
+          : this.state.getDisplayNode().connected;
+
+      if (!this.running || !socket.connected || !stillConnected) {
         return;
       }
       console.error(
@@ -380,28 +450,39 @@ export class RuntimeController {
       );
       await this.failNode(role, socket, `${role} readiness failed`);
     } finally {
-      this.readinessInFlight.delete(role);
+      this.readinessInFlight.delete(flightKey);
     }
   }
 
   private runHeartbeatCycle(): void {
     const heartbeat = { sent_at_ms: Date.now() };
-    const hardware = this.registry.getHardware();
+    const hardwareClients = this.registry.getHardwareClients();
     const display = this.registry.getDisplay();
 
-    if (hardware?.connected) hardware.emit("server-heartbeat", heartbeat);
+    for (const hardware of hardwareClients) {
+      hardware.emit("server-heartbeat", heartbeat);
+    }
     if (display?.connected) display.emit("server-heartbeat", heartbeat);
 
     const now = Date.now();
-    if (
-      hardware?.connected &&
-      this.state.isHeartbeatExpired("hardware", now, this.heartbeatTimeoutMs)
-    ) {
-      void this.failNode("hardware", hardware, "hardware heartbeat timed out");
+    for (const hardware of hardwareClients) {
+      if (
+        this.state.isHardwareHeartbeatExpired(
+          hardware.data.client_id,
+          now,
+          this.heartbeatTimeoutMs,
+        )
+      ) {
+        void this.failNode(
+          "hardware",
+          hardware,
+          "hardware heartbeat timed out",
+        );
+      }
     }
     if (
       display?.connected &&
-      this.state.isHeartbeatExpired("display", now, this.heartbeatTimeoutMs)
+      this.state.isDisplayHeartbeatExpired(now, this.heartbeatTimeoutMs)
     ) {
       void this.failNode("display", display, "display heartbeat timed out");
     }
@@ -413,21 +494,33 @@ export class RuntimeController {
     reason: string,
   ): Promise<void> {
     if (!this.running) return;
-    if (this.failuresInFlight.has(role)) return;
-    this.failuresInFlight.add(role);
-    this.state.markUnavailable(role);
+
+    const flightKey =
+      role === "hardware"
+        ? hardwareFlightKey(socket.data.client_id)
+        : displayFlightKey();
+
+    if (this.failuresInFlight.has(flightKey)) return;
+    this.failuresInFlight.add(flightKey);
+
+    if (role === "hardware") {
+      this.state.markHardwareUnavailable(socket.data.client_id);
+    } else {
+      this.state.markDisplayUnavailable();
+    }
     this.broadcastStatus(role);
 
     try {
-      await this.enterFailSafe(role, reason);
+      await this.enterFailSafe(role, socket, reason);
     } finally {
       if (socket.connected) socket.disconnect(true);
-      this.failuresInFlight.delete(role);
+      this.failuresInFlight.delete(flightKey);
     }
   }
 
   private async enterFailSafe(
     failedRole: NodeRole | null,
+    failedSocket: AppSocket | null,
     reason: string,
   ): Promise<void> {
     console.error(`[runtime] entering safe idle: ${reason}`);
@@ -435,12 +528,14 @@ export class RuntimeController {
     this.broadcastRuntimeStatus();
 
     const tasks: Promise<unknown>[] = [];
-    const hardware = this.registry.getHardware();
+    const hardwareClients = this.registry.getHardwareClients();
     const display = this.registry.getDisplay();
 
-    if (failedRole !== "hardware" && hardware?.connected) {
+    for (const hardware of hardwareClients) {
+      if (failedSocket && hardware.id === failedSocket.id) continue;
       tasks.push(this.sendAllOff(hardware));
     }
+
     if (failedRole !== "display" && display?.connected) {
       tasks.push(this.stopDisplay(display));
     }

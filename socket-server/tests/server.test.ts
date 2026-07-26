@@ -49,6 +49,25 @@ function acknowledgeReadiness(
   );
 }
 
+function connectHardwarePair(
+  client: (
+    auth: Record<string, unknown>,
+    options?: Partial<ManagerOptions & SocketOptions>,
+  ) => TestClient,
+): [TestClient, TestClient] {
+  const first = client({
+    role: "hardware",
+    client_id: "raspberry-pi-1",
+  });
+  const second = client({
+    role: "hardware",
+    client_id: "raspberry-pi-2",
+  });
+  acknowledgeReadiness(first, "hardware-readiness-check");
+  acknowledgeReadiness(second, "hardware-readiness-check");
+  return [first, second];
+}
+
 describe("Socket.IO server foundation", () => {
   let server: SocketServer;
   let url: string;
@@ -121,7 +140,7 @@ describe("Socket.IO server foundation", () => {
     expect(display.online).toBe(false);
   });
 
-  test("broadcasts hardware connection status to Tablets", async () => {
+  test("broadcasts hardware connection status to Tablets only when both Pis are ready", async () => {
     const tablet = client({ role: "tablet", client_id: "tablet-1" });
     const tabletConnected = once(tablet, "connect");
     const initialHardware = once<{ online: boolean }>(
@@ -131,19 +150,39 @@ describe("Socket.IO server foundation", () => {
     tablet.connect();
     await Promise.all([tabletConnected, initialHardware]);
 
-    const onlinePromise = waitForStatus(tablet, "hardware-status", true);
+    const [first, second] = connectHardwarePair(client);
+    first.connect();
+    await Bun.sleep(50);
+    expect(server.runtime.state.isOnline("hardware")).toBe(false);
 
-    const hardware = client({
-      role: "hardware",
-      client_id: "raspberry-pi-1",
-    });
-    acknowledgeReadiness(hardware, "hardware-readiness-check");
-    hardware.connect();
+    const onlinePromise = waitForStatus(tablet, "hardware-status", true);
+    second.connect();
 
     expect((await onlinePromise).online).toBe(true);
   });
 
-  test("allows only one hardware client", async () => {
+  test("allows two hardware clients and rejects a third", async () => {
+    const [first, second] = connectHardwarePair(client);
+    const firstConnected = once(first, "connect");
+    const secondConnected = once(second, "connect");
+    first.connect();
+    second.connect();
+    await Promise.all([firstConnected, secondConnected]);
+
+    const third = client({
+      role: "hardware",
+      client_id: "raspberry-pi-3",
+    });
+    const errorPromise = once<Error & { data?: { error_code?: string } }>(
+      third,
+      "connect_error",
+    );
+    third.connect();
+
+    expect((await errorPromise).data?.error_code).toBe("duplicate_client");
+  });
+
+  test("rejects a duplicate hardware client_id", async () => {
     const first = client({
       role: "hardware",
       client_id: "raspberry-pi-1",
@@ -153,15 +192,15 @@ describe("Socket.IO server foundation", () => {
     first.connect();
     await firstConnected;
 
-    const second = client({
+    const duplicate = client({
       role: "hardware",
-      client_id: "raspberry-pi-2",
+      client_id: "raspberry-pi-1",
     });
     const errorPromise = once<Error & { data?: { error_code?: string } }>(
-      second,
+      duplicate,
       "connect_error",
     );
-    second.connect();
+    duplicate.connect();
 
     expect((await errorPromise).data?.error_code).toBe("duplicate_client");
   });
@@ -176,12 +215,9 @@ describe("Socket.IO server foundation", () => {
     await initialStatus;
 
     const onlineStatus = waitForStatus(tablet, "hardware-status", true);
-    const hardware = client({
-      role: "hardware",
-      client_id: "raspberry-pi-1",
-    });
-    acknowledgeReadiness(hardware, "hardware-readiness-check");
-    hardware.connect();
+    const [first, second] = connectHardwarePair(client);
+    first.connect();
+    second.connect();
     expect((await onlineStatus).online).toBe(true);
 
     const offlineStatus = waitForStatus(tablet, "hardware-status", false);
@@ -189,11 +225,7 @@ describe("Socket.IO server foundation", () => {
   });
 
   test("sends periodic server heartbeats", async () => {
-    const hardware = client({
-      role: "hardware",
-      client_id: "raspberry-pi-1",
-    });
-    acknowledgeReadiness(hardware, "hardware-readiness-check");
+    const [hardware] = connectHardwarePair(client);
     const heartbeat = once<{ sent_at_ms: number }>(
       hardware,
       "server-heartbeat",
@@ -214,19 +246,17 @@ describe("Socket.IO server foundation", () => {
     hardware.connect();
 
     await disconnected;
-    expect(server.runtime.state.hardware.connected).toBe(false);
+    expect(server.runtime.state.getHardwareNode("raspberry-pi-1")).toBeUndefined();
     expect(server.runtime.state.isOnline("hardware")).toBe(false);
   });
 
   test("switches hardware off when the display disconnects", async () => {
-    const hardware = client({
-      role: "hardware",
-      client_id: "raspberry-pi-1",
-    });
-    acknowledgeReadiness(hardware, "hardware-readiness-check");
+    const [hardware, hardware2] = connectHardwarePair(client);
     const hardwareConnected = once(hardware, "connect");
+    const hardware2Connected = once(hardware2, "connect");
     hardware.connect();
-    await hardwareConnected;
+    hardware2.connect();
+    await Promise.all([hardwareConnected, hardware2Connected]);
 
     const safeOff = new Promise<{ lights: unknown[] }>((resolve) => {
       hardware.once(
@@ -244,6 +274,19 @@ describe("Socket.IO server foundation", () => {
         },
       );
     });
+    hardware2.on(
+      "hardware-apply-state",
+      (
+        payload: { transaction_id: string },
+        ack: (result: unknown) => void,
+      ) => {
+        ack({
+          transaction_id: payload.transaction_id,
+          status: "success",
+          applied_at_ms: Date.now(),
+        });
+      },
+    );
 
     const display = client({
       role: "display",

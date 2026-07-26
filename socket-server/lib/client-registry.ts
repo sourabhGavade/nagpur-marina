@@ -21,53 +21,75 @@ export type AppIo = Server<
   SocketData
 >;
 
+/** Exactly this many Raspberry Pi hardware agents must connect. */
+export const EXPECTED_HARDWARE_CLIENTS = 2;
+
 export class DuplicateClientError extends Error {
   constructor(role: Exclude<ClientRole, "tablet">) {
-    super(`A ${role} client is already connected`);
+    super(
+      role === "hardware"
+        ? `Hardware client capacity (${EXPECTED_HARDWARE_CLIENTS}) reached or client_id already connected`
+        : `A ${role} client is already connected`,
+    );
     this.name = "DuplicateClientError";
   }
 }
 
 export class ClientRegistry {
   private readonly tablets = new Map<string, AppSocket>();
-  private hardware: AppSocket | null = null;
+  private readonly hardware = new Map<string, AppSocket>();
   private display: AppSocket | null = null;
 
-  assertRoleAvailable(role: ClientRole): void {
-    if (role === "hardware" && this.hardware?.connected) {
-      throw new DuplicateClientError(role);
+  assertRoleAvailable(role: ClientRole, clientId: string): void {
+    if (role === "hardware") {
+      const existing = this.hardware.get(clientId);
+      if (existing?.connected) {
+        throw new DuplicateClientError(role);
+      }
+
+      const connectedCount = [...this.hardware.values()].filter(
+        (socket) => socket.connected,
+      ).length;
+      if (connectedCount >= EXPECTED_HARDWARE_CLIENTS) {
+        throw new DuplicateClientError(role);
+      }
+      return;
     }
+
     if (role === "display" && this.display?.connected) {
       throw new DuplicateClientError(role);
     }
   }
 
   register(socket: AppSocket): void {
-    const { role } = socket.data;
+    const { role, client_id } = socket.data;
 
     if (role === "tablet") {
       this.tablets.set(socket.id, socket);
     } else if (role === "hardware") {
-      this.hardware = socket;
+      this.hardware.set(client_id, socket);
     } else {
       this.display = socket;
     }
   }
 
   unregister(socket: AppSocket): void {
-    const { role } = socket.data;
+    const { role, client_id } = socket.data;
 
     if (role === "tablet") {
       this.tablets.delete(socket.id);
-    } else if (role === "hardware" && this.hardware?.id === socket.id) {
-      this.hardware = null;
+    } else if (
+      role === "hardware" &&
+      this.hardware.get(client_id)?.id === socket.id
+    ) {
+      this.hardware.delete(client_id);
     } else if (role === "display" && this.display?.id === socket.id) {
       this.display = null;
     }
   }
 
-  getHardware(): AppSocket | null {
-    return this.hardware;
+  getHardwareClients(): AppSocket[] {
+    return [...this.hardware.values()].filter((socket) => socket.connected);
   }
 
   getDisplay(): AppSocket | null {
@@ -79,7 +101,7 @@ export class ClientRegistry {
   }
 
   get hardwareOnline(): boolean {
-    return this.hardware?.connected ?? false;
+    return this.getHardwareClients().length === EXPECTED_HARDWARE_CLIENTS;
   }
 
   get displayOnline(): boolean {

@@ -18,6 +18,7 @@ describe("continuous Area sequence", () => {
   let server: SocketServer;
   let tablet: Socket;
   let hardware: Socket;
+  let hardware2: Socket;
   let display: Socket;
   const clients: Socket[] = [];
   const appliedZones: string[] = [];
@@ -50,12 +51,17 @@ describe("continuous Area sequence", () => {
       role: "hardware",
       client_id: "raspberry-pi-1",
     });
+    hardware2 = connect(url, {
+      role: "hardware",
+      client_id: "raspberry-pi-2",
+    });
     display = connect(url, {
       role: "display",
       client_id: "large-monitor-1",
     });
 
     acknowledgeReadiness(hardware, "hardware-readiness-check");
+    acknowledgeReadiness(hardware2, "hardware-readiness-check");
     acknowledgeReadiness(display, "display-readiness-check");
     display.on("prepare-video", (payload, ack) => {
       ack({
@@ -69,6 +75,13 @@ describe("continuous Area sequence", () => {
         appliedZones.push(payload.zone_id);
         executionTimes.push(payload.execute_at_ms);
       }
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
+      });
+    });
+    hardware2.on("hardware-apply-state", (payload, ack) => {
       ack({
         transaction_id: payload.transaction_id,
         status: "success",
@@ -99,6 +112,7 @@ describe("continuous Area sequence", () => {
 
     tablet.connect();
     hardware.connect();
+    hardware2.connect();
     display.connect();
     await waitUntil(
       () =>

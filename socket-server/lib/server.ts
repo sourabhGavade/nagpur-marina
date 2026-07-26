@@ -100,7 +100,7 @@ export function createSocketServer(
     }
 
     try {
-      registry.assertRoleAvailable(result.data.role);
+      registry.assertRoleAvailable(result.data.role, result.data.client_id);
       socket.data = result.data;
       next();
     } catch (cause) {
@@ -161,9 +161,9 @@ export function createSocketServer(
       registry.unregister(socket);
 
       if (role === "hardware") {
-        runtime.onNodeDisconnected("hardware");
+        runtime.onNodeDisconnected("hardware", client_id);
       } else if (role === "display") {
-        runtime.onNodeDisconnected("display");
+        runtime.onNodeDisconnected("display", client_id);
       }
 
       console.info(

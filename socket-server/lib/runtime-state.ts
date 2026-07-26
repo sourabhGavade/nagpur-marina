@@ -1,4 +1,5 @@
 import type { ClientRole } from "../utils/types.ts";
+import { EXPECTED_HARDWARE_CLIENTS } from "./client-registry.ts";
 
 export type NodeRole = Exclude<ClientRole, "tablet">;
 export type RuntimeMode = "idle" | "area" | "zone" | "subzone";
@@ -21,6 +22,10 @@ function createNodeHealth(): NodeHealth {
   };
 }
 
+function isNodeOnline(node: NodeHealth): boolean {
+  return node.connected && node.ready && node.reportedStatus !== "error";
+}
+
 interface PendingWait {
   timer: ReturnType<typeof setTimeout> | null;
   dueAt: number;
@@ -37,64 +42,112 @@ export class RuntimeState {
   generation = 0;
   paused = false;
 
-  readonly hardware = createNodeHealth();
+  readonly hardwareNodes = new Map<string, NodeHealth>();
   readonly display = createNodeHealth();
   readonly activeTransactionIds = new Set<string>();
   private readonly pendingWaits = new Set<PendingWait>();
 
-  getNode(role: NodeRole): NodeHealth {
-    return role === "hardware" ? this.hardware : this.display;
+  getHardwareNode(clientId: string): NodeHealth | undefined {
+    return this.hardwareNodes.get(clientId);
   }
 
-  markConnected(role: NodeRole, now = Date.now()): void {
-    const node = this.getNode(role);
+  getDisplayNode(): NodeHealth {
+    return this.display;
+  }
+
+  markHardwareConnected(clientId: string, now = Date.now()): void {
+    const node = this.hardwareNodes.get(clientId) ?? createNodeHealth();
     node.connected = true;
     node.ready = false;
     node.lastHeartbeatAt = now;
     node.uptimeMs = null;
     node.reportedStatus = null;
+    this.hardwareNodes.set(clientId, node);
   }
 
-  markReady(role: NodeRole): void {
-    const node = this.getNode(role);
-    if (node.connected) node.ready = true;
+  markDisplayConnected(now = Date.now()): void {
+    this.display.connected = true;
+    this.display.ready = false;
+    this.display.lastHeartbeatAt = now;
+    this.display.uptimeMs = null;
+    this.display.reportedStatus = null;
   }
 
-  markUnavailable(role: NodeRole): void {
-    this.getNode(role).ready = false;
+  markHardwareReady(clientId: string): void {
+    const node = this.hardwareNodes.get(clientId);
+    if (node?.connected) node.ready = true;
   }
 
-  markHeartbeat(
-    role: NodeRole,
+  markDisplayReady(): void {
+    if (this.display.connected) this.display.ready = true;
+  }
+
+  markHardwareUnavailable(clientId: string): void {
+    const node = this.hardwareNodes.get(clientId);
+    if (node) node.ready = false;
+  }
+
+  markDisplayUnavailable(): void {
+    this.display.ready = false;
+  }
+
+  markHardwareHeartbeat(
+    clientId: string,
     uptimeMs: number,
     status: "ready" | "error",
     now = Date.now(),
   ): void {
-    const node = this.getNode(role);
+    const node = this.hardwareNodes.get(clientId);
+    if (!node) return;
     node.lastHeartbeatAt = now;
     node.uptimeMs = uptimeMs;
     node.reportedStatus = status;
   }
 
-  markDisconnected(role: NodeRole): void {
-    Object.assign(this.getNode(role), createNodeHealth());
+  markDisplayHeartbeat(
+    uptimeMs: number,
+    status: "ready" | "error",
+    now = Date.now(),
+  ): void {
+    this.display.lastHeartbeatAt = now;
+    this.display.uptimeMs = uptimeMs;
+    this.display.reportedStatus = status;
+  }
+
+  markHardwareDisconnected(clientId: string): void {
+    this.hardwareNodes.delete(clientId);
+  }
+
+  markDisplayDisconnected(): void {
+    Object.assign(this.display, createNodeHealth());
   }
 
   isOnline(role: NodeRole): boolean {
-    const node = this.getNode(role);
-    return node.connected && node.ready && node.reportedStatus !== "error";
+    if (role === "display") return isNodeOnline(this.display);
+
+    if (this.hardwareNodes.size < EXPECTED_HARDWARE_CLIENTS) return false;
+    return [...this.hardwareNodes.values()].every(isNodeOnline);
   }
 
-  isHeartbeatExpired(
-    role: NodeRole,
+  isHardwareHeartbeatExpired(
+    clientId: string,
     now: number,
     timeoutMs: number,
   ): boolean {
-    const node = this.getNode(role);
+    const node = this.hardwareNodes.get(clientId);
     return (
+      !!node &&
       node.connected &&
       node.lastHeartbeatAt !== null &&
       now - node.lastHeartbeatAt >= timeoutMs
+    );
+  }
+
+  isDisplayHeartbeatExpired(now: number, timeoutMs: number): boolean {
+    return (
+      this.display.connected &&
+      this.display.lastHeartbeatAt !== null &&
+      now - this.display.lastHeartbeatAt >= timeoutMs
     );
   }
 

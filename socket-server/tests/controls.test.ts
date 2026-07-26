@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { io as createClient, type Socket } from "socket.io-client";
 import { createSocketServer, type SocketServer } from "../lib/server.ts";
+import type { HardwareApplyStatePayload } from "../utils/types.ts";
 
 function acknowledgeReadiness(
   socket: Socket,
@@ -13,6 +14,19 @@ function acknowledgeReadiness(
         transaction_id: payload.transaction_id,
         status: "ready",
         checked_at_ms: Date.now(),
+      });
+    },
+  );
+}
+
+function acknowledgeHardwareApply(socket: Socket): void {
+  socket.on(
+    "hardware-apply-state",
+    (payload: { transaction_id: string }, ack: (result: unknown) => void) => {
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
       });
     },
   );
@@ -34,6 +48,7 @@ describe("Tablet controls", () => {
   let url: string;
   let tablet: Socket;
   let hardware: Socket;
+  let hardware2: Socket;
   let display: Socket;
   const clients: Socket[] = [];
 
@@ -60,16 +75,22 @@ describe("Tablet controls", () => {
       role: "hardware",
       client_id: "raspberry-pi-1",
     });
+    hardware2 = connect({
+      role: "hardware",
+      client_id: "raspberry-pi-2",
+    });
     display = connect({
       role: "display",
       client_id: "large-monitor-1",
     });
 
     acknowledgeReadiness(hardware, "hardware-readiness-check");
+    acknowledgeReadiness(hardware2, "hardware-readiness-check");
     acknowledgeReadiness(display, "display-readiness-check");
 
     tablet.connect();
     hardware.connect();
+    hardware2.connect();
     display.connect();
 
     await waitUntil(
@@ -108,19 +129,37 @@ describe("Tablet controls", () => {
     );
   }
 
+  function waitForSharedHardwareApply(): Promise<
+    [HardwareApplyStatePayload, HardwareApplyStatePayload]
+  > {
+    return Promise.all([
+      new Promise<HardwareApplyStatePayload>((resolve) => {
+        hardware.once("hardware-apply-state", (payload, ack) => {
+          ack({
+            transaction_id: payload.transaction_id,
+            status: "success",
+            applied_at_ms: Date.now(),
+          });
+          resolve(payload);
+        });
+      }),
+      new Promise<HardwareApplyStatePayload>((resolve) => {
+        hardware2.once("hardware-apply-state", (payload, ack) => {
+          ack({
+            transaction_id: payload.transaction_id,
+            status: "success",
+            applied_at_ms: Date.now(),
+          });
+          resolve(payload);
+        });
+      }),
+    ]);
+  }
+
   test("activates all Sub-Zones and video for one Zone", async () => {
     acknowledgeVideoPreparation();
 
-    const hardwareState = new Promise<any>((resolve) => {
-      hardware.once("hardware-apply-state", (payload, ack) => {
-        ack({
-          transaction_id: payload.transaction_id,
-          status: "success",
-          applied_at_ms: Date.now(),
-        });
-        resolve(payload);
-      });
-    });
+    const hardwareState = waitForSharedHardwareApply();
     const videoState = new Promise<any>((resolve) => {
       display.once("play-video-transition", (payload, ack) => {
         ack({
@@ -135,14 +174,12 @@ describe("Tablet controls", () => {
       tablet.emit("zone-activation", { zone_id: "foyer-welcome" }, resolve);
     });
 
-    const [command, hardwarePayload, videoPayload] = await Promise.all([
-      result,
-      hardwareState,
-      videoState,
-    ]);
+    const [command, [hardwarePayload, hardware2Payload], videoPayload] =
+      await Promise.all([result, hardwareState, videoState]);
 
     expect(command.status).toBe("success");
     expect(hardwarePayload.lights).toHaveLength(2);
+    expect(hardware2Payload).toEqual(hardwarePayload);
     expect(hardwarePayload.execute_at_ms).toBe(videoPayload.execute_at_ms);
     expect(server.runtime.state.mode).toBe("zone");
     expect(server.runtime.state.activeZoneId).toBe("foyer-welcome");
@@ -151,16 +188,7 @@ describe("Tablet controls", () => {
   test("controls one Sub-Zone and plays its parent video", async () => {
     acknowledgeVideoPreparation();
 
-    const hardwareState = new Promise<any>((resolve) => {
-      hardware.once("hardware-apply-state", (payload, ack) => {
-        ack({
-          transaction_id: payload.transaction_id,
-          status: "success",
-          applied_at_ms: Date.now(),
-        });
-        resolve(payload);
-      });
-    });
+    const hardwareState = waitForSharedHardwareApply();
     display.once("play-video-transition", (payload, ack) => {
       ack({
         transaction_id: payload.transaction_id,
@@ -182,10 +210,11 @@ describe("Tablet controls", () => {
         resolve,
       );
     });
-    const payload = await hardwareState;
+    const [payload, payload2] = await hardwareState;
 
     expect(result.status).toBe("success");
     expect(payload.scope).toBe("subzone");
+    expect(payload2).toEqual(payload);
     expect(payload.lights).toEqual([
       {
         element_id: "foyer_accent",
@@ -222,13 +251,10 @@ describe("Tablet controls", () => {
     });
 
     const appliedZones: string[] = [];
-    hardware.on("hardware-apply-state", (payload, ack) => {
+    acknowledgeHardwareApply(hardware);
+    acknowledgeHardwareApply(hardware2);
+    hardware.on("hardware-apply-state", (payload) => {
       appliedZones.push(payload.zone_id ?? "system");
-      ack({
-        transaction_id: payload.transaction_id,
-        status: "success",
-        applied_at_ms: Date.now(),
-      });
     });
     display.on("play-video-transition", (payload, ack) => {
       ack({
@@ -257,13 +283,8 @@ describe("Tablet controls", () => {
   });
 
   test("stops video and switches every output off", async () => {
-    hardware.once("hardware-apply-state", (payload, ack) => {
-      ack({
-        transaction_id: payload.transaction_id,
-        status: "success",
-        applied_at_ms: Date.now(),
-      });
-    });
+    acknowledgeHardwareApply(hardware);
+    acknowledgeHardwareApply(hardware2);
     display.once("stop-video", (payload, ack) => {
       ack({
         transaction_id: payload.transaction_id,
@@ -280,18 +301,16 @@ describe("Tablet controls", () => {
     expect(server.runtime.state.mode).toBe("idle");
   });
 
-  test("broadcasts emergency shutdown repeatedly", async () => {
+  test("broadcasts emergency shutdown repeatedly to both Pis", async () => {
     let emergencyCount = 0;
     hardware.on("hardware-emergency-shutdown", () => {
       emergencyCount += 1;
     });
-    hardware.once("hardware-apply-state", (payload, ack) => {
-      ack({
-        transaction_id: payload.transaction_id,
-        status: "success",
-        applied_at_ms: Date.now(),
-      });
+    hardware2.on("hardware-emergency-shutdown", () => {
+      emergencyCount += 1;
     });
+    acknowledgeHardwareApply(hardware);
+    acknowledgeHardwareApply(hardware2);
     display.once("stop-video", (payload, ack) => {
       ack({
         transaction_id: payload.transaction_id,
@@ -303,7 +322,7 @@ describe("Tablet controls", () => {
     tablet.emit("global-emergency-stop");
     await Bun.sleep(50);
 
-    expect(emergencyCount).toBe(3);
+    expect(emergencyCount).toBe(6);
     expect(server.runtime.state.mode).toBe("idle");
   });
 });
