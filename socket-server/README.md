@@ -33,6 +33,17 @@ Other commands:
 bun run start
 bun run test
 bun run typecheck
+bun run mock:hardware
+```
+
+`bun run mock:hardware` connects both `raspberry-pi-1` and `raspberry-pi-2`
+and prints the full JSON payload for every inbound server event. Pass one or
+more IDs to connect a subset:
+
+```bash
+bun run mock:hardware:1
+bun run mock:hardware:2
+bun scripts/mock-hardware.ts raspberry-pi-1 raspberry-pi-2
 ```
 
 The HTTP health endpoint is available at `GET /health`.
