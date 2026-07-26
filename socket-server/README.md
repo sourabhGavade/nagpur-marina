@@ -38,11 +38,13 @@ bun run typecheck
 The HTTP health endpoint is available at `GET /health`.
 
 Hardware and display clients must acknowledge their readiness check before the
-server reports them online. The server sends `server-heartbeat` every five
-seconds and marks a client offline after 30 seconds without its corresponding
-heartbeat. A failed readiness check, heartbeat timeout, or disconnect
-invalidates active runtime work and triggers the available safe-off and
-display-stop commands.
+server reports them online. Exactly two hardware clients with distinct
+`client_id` values are required; hardware status is online only when both are
+ready. Lighting commands are broadcast to both Pis. The server sends
+`server-heartbeat` every five seconds and marks a client offline after 30
+seconds without its corresponding heartbeat. A failed readiness check,
+heartbeat timeout, or disconnect invalidates active runtime work and triggers
+the available safe-off and display-stop commands.
 
 Implemented Tablet controls:
 

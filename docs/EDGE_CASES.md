@@ -8,14 +8,21 @@ delegated to the separately implemented Raspberry Pi hardware agent.
 
 - Socket connections are rejected unless they provide a non-empty `client_id`
   and a supported role: `tablet`, `hardware`, or `display`.
-- Multiple tablets may connect, but only one hardware client and one display
-  client may be active at a time.
+- Multiple tablets may connect. Exactly two hardware clients may be active at a
+  time, each with a distinct `client_id`. Only one display client may be active
+  at a time.
+- A third hardware connection, or a hardware connection that reuses an already
+  connected `client_id`, is rejected with `duplicate_client`.
 - A late disconnect from an old socket cannot unregister a newer replacement
-  socket with the same role.
-- Hardware and display clients are not considered online until they connect and
-  pass a readiness check.
+  socket with the same role/`client_id`.
+- Hardware is online only when both expected Pis are connected and pass
+  readiness. The display is online after it connects and passes readiness.
 - A failed readiness check, heartbeat timeout, reported device error, or socket
-  disconnect marks the device offline and starts fail-safe cleanup.
+  disconnect marks the affected device offline and starts fail-safe cleanup.
+  Losing either Pi marks combined hardware status offline.
+- Lighting commands, all-off, and emergency shutdown are broadcast identically
+  to every connected hardware client; apply-state requires successful ACKs from
+  both.
 - Server startup and signal-driven shutdown are guarded against duplicate
   execution.
 
@@ -32,8 +39,7 @@ Relevant code:
 - IDs, names, image URLs, and video URLs must be non-empty.
 - IDs and sequence orders must be positive integers.
 - Durations must be non-negative integers.
-- Lighting intensity must be an integer from 0 through 100.
-- Colors must use the `#RRGGBB` format.
+- Lighting `intensity` must be a number from `0` through `1`.
 - A crossfade cannot be longer than its video.
 - Duplicate Area IDs/orders, Zone IDs/orders, and Sub-zone element IDs are
   rejected.
@@ -227,14 +233,14 @@ The following cases should not be treated as fully handled by this repository:
 The Socket.IO server test suite covers:
 
 - configuration and command validation;
-- duplicate hardware rejection;
+- dual hardware capacity and duplicate hardware rejection;
 - readiness timeout and heartbeat expiry;
 - disconnect fail-safe behavior;
 - sequence ordering and wraparound;
 - pause/resume timing;
 - stale-command suppression;
 - normal Stop; and
-- repeated Emergency Stop broadcast.
+- repeated Emergency Stop broadcast to both Pis.
 
 TV browser behavior, Tablet callback timeouts, completed-transaction
 idempotency, reconnect recovery, and production Raspberry Pi behavior require

@@ -1,9 +1,9 @@
 # Raspberry Pi Hardware Integration Contract
 
-**Protocol version:** 1.2  
+**Protocol version:** 1.3  
 **Status:** Implemented Central Server contract for the Raspberry Pi team
 
-This document defines every Socket.IO message exchanged between the Central Laptop Server and the Raspberry Pi hardware agent.
+This document defines every Socket.IO message exchanged between the Central Laptop Server and the Raspberry Pi hardware agents.
 
 ## 1. Connection
 
@@ -13,7 +13,8 @@ This document defines every Socket.IO message exchanged between the Central Lapt
 | Protocol | Socket.IO client v4.x |
 | Socket.IO namespace | `/` (default) |
 | Preferred transport | WebSocket |
-| Pi ID | `raspberry-pi-1` |
+| Expected hardware clients | Exactly **2** (distinct `client_id`s) |
+| Example Pi IDs | `raspberry-pi-1`, `raspberry-pi-2` |
 
 The Socket.IO handshake must identify the client as hardware:
 
@@ -22,22 +23,30 @@ io(process.env.SOCKET_SERVER_URL, {
   transports: ["websocket"],
   auth: {
     role: "hardware",
-    client_id: "raspberry-pi-1"
+    client_id: "raspberry-pi-1" // or "raspberry-pi-2"
   }
 });
 ```
 
-The Pi must:
+The Server accepts exactly two connected hardware clients with distinct
+`client_id` values. A third hardware connection, or a second connection using an
+already-connected `client_id`, is rejected with `duplicate_client`.
+
+Both Pis:
 
 1. Maintain a persistent Socket.IO connection.
 2. Reconnect automatically after a network or power interruption.
-3. Load its local `element_id` to GPIO/output mapping before reporting ready.
+3. Load their local `element_id` to GPIO/output mapping before reporting ready.
 4. Set all registered outputs to their safe off state at startup.
 5. Set all outputs to their safe off state after a disconnect or after 30 seconds without a `server-heartbeat`.
 6. Never restore a previous output state or queued transaction automatically after startup or reconnection.
 
+Hardware is reported online to the Tablet only when **both** Pis are connected,
+ready, and not in error. Every lighting command is broadcast identically to both
+Pis; both must acknowledge success.
+
 Configure the address through the Pi agent's `SOCKET_SERVER_URL` environment
-variable. There is currently no authentication token in protocol version 1.2.
+variable. There is currently no authentication token in protocol version 1.3.
 The system must run only on the trusted installation LAN.
 
 ## 2. Event Summary
@@ -82,13 +91,13 @@ Events that require a callback use the Socket.IO acknowledgement callback attach
 
 ### How one normal command works
 
-1. The Server sends the `hardware-readiness-check` event and a JSON payload.
-2. The Pi checks its registry, drivers, and watchdog, then returns one callback.
-3. The Server sends `hardware-apply-state` with the complete desired lighting state and a future execution time.
-4. The Pi validates the full payload without changing any output.
-5. The Pi schedules the valid state for `execute_at_ms`.
-6. At that time, the Pi applies all output changes together.
-7. The Pi returns one success callback. If validation or execution fails, it returns one error callback instead.
+1. The Server sends the `hardware-readiness-check` event and a JSON payload to each connected Pi.
+2. Each Pi checks its registry, drivers, and watchdog, then returns one callback.
+3. The Server sends the same `hardware-apply-state` payload to **both** Pis with the complete desired lighting state and a future execution time.
+4. Each Pi validates the full payload without changing any output.
+5. Each Pi schedules the valid state for `execute_at_ms`.
+6. At that time, each Pi applies all output changes together.
+7. Each Pi returns one success callback. If validation or execution fails on either Pi, that Pi returns one error callback instead and the overall command fails.
 
 ### Socket.IO ACK concept
 
@@ -166,8 +175,7 @@ The shared data model is `Area → Zone → Sub-Zone`, where each sub-zone repre
     {
       "element_id": "foyer_accent",
       "action": "activate",
-      "color_hex": "#FFB347",
-      "intensity_percent": 80,
+      "intensity": 0.8,
       "animation_duration_ms": 500
     }
   ]
@@ -178,7 +186,7 @@ The shared data model is `Area → Zone → Sub-Zone`, where each sub-zone repre
 
 This example means:
 
-> For command `cmd-174001`, replace the current lighting state for Zone `foyer-welcome` in Area `1`. At Unix time `1784655000123`, switch on the hardware element named `foyer_accent`, transition it to warm orange `#FFB347` at 80% intensity over 500 milliseconds, and switch off every other registered output.
+> For command `cmd-174001`, replace the current lighting state for Zone `foyer-welcome` in Area `1`. At Unix time `1784655000123`, switch on the hardware element named `foyer_accent`, transition it to intensity `0.8` (80% of full) over 500 milliseconds, and switch off every other registered output. The Server sends this identical payload to both connected Raspberry Pis.
 
 ### Field requirements
 
@@ -193,8 +201,7 @@ This example means:
 | `lights` | array | Transport list of desired sub-zone hardware states. A Zone can supply multiple items, a single sub-zone command supplies one item, and `[]` means all outputs off. |
 | `element_id` | string | Identifies the sub-zone's controllable physical element. The Pi translates it through its local registry to a GPIO pin, relay, PWM channel, or driver address. |
 | `action` | string | `activate` switches the element on as requested; `deactivate` sends it to its safe off state. |
-| `color_hex` | string | RGB color written as `#RRGGBB`, for example `#FF0000` is red. It must match `^#[0-9A-Fa-f]{6}$`. |
-| `intensity_percent` | integer | Requested brightness: `0` is no intensity and `100` is full configured intensity. |
+| `intensity` | number | Requested brightness from `0` (off) to `1` (full intensity). Example: `0.8` means 80% of full. |
 | `animation_duration_ms` | integer | Time taken to move from the current output to the requested output. `500` means half a second; `0` means immediate. |
 
 ### Replacement behavior
@@ -202,8 +209,8 @@ This example means:
 `mode: "replace"` means the payload is the complete desired state:
 
 - Every registered output omitted from `lights` must transition to its safe off state.
-- An item with `action: "activate"` transitions to the supplied color and intensity.
-- An item with `action: "deactivate"` transitions to its safe off state. Its color and intensity values are ignored, but must still be valid.
+- An item with `action: "activate"` transitions to the supplied intensity.
+- An item with `action: "deactivate"` transitions to its safe off state. Its intensity value is ignored, but must still be valid.
 - An empty `lights` array switches every registered output off.
 - Pending non-emergency lighting commands are cancelled when a valid replacement command is accepted.
 - All listed and omitted outputs must begin their transitions together at `execute_at_ms`.
@@ -275,8 +282,7 @@ The array contains one item for every sub-zone/light that belongs to the selecte
     {
       "element_id": "foyer_accent",
       "action": "activate",
-      "color_hex": "#FFB347",
-      "intensity_percent": 80,
+      "intensity": 0.8,
       "animation_duration_ms": 500
     }
   ]
@@ -299,8 +305,7 @@ Because one sub-zone represents one controllable light, the array contains exact
     {
       "element_id": "corridor_wall_left",
       "action": "activate",
-      "color_hex": "#4A90E2",
-      "intensity_percent": 100,
+      "intensity": 1,
       "animation_duration_ms": 750
     }
   ]
@@ -495,8 +500,12 @@ The server does not wait for or depend on this event.
 ## 12. Important Integration Note
 
 The Central Laptop Server, Tablet client, TV display client, and a development
-hardware simulator are implemented in this repository. The production Pi agent
-must follow this version 1.2 contract. Run `bun run mock:hardware` from
+hardware simulator are implemented in this repository. The production Pi agents
+must follow this version 1.3 contract. Run `bun run mock:hardware` from
 `socket-server` to test the complete application without physical hardware.
-Do not run the simulator and production Pi agent simultaneously because the
-Server permits only one hardware connection.
+
+The Server expects exactly two hardware clients. Do not run more than two
+hardware agents (simulators and/or production Pis) against the same server.
+Each agent must use a distinct `client_id` such as `raspberry-pi-1` and
+`raspberry-pi-2`. The Tablet shows a single combined Raspberry Pi online status
+that requires both agents to be ready.

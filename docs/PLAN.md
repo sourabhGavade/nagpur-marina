@@ -47,7 +47,7 @@ The local area network (LAN) is configured as a dedicated subnet to minimize rou
 *   **Central Laptop Server (`192.168.1.15:4000`):** Functions as the master automation core, routing node, and central timing loop clock. Hardwired via physical Cat6 Ethernet.
 *   **Large Monitor Display (Local Port `3001`):** Hardwired via physical Cat6 Ethernet directly to the primary hardware switch layer. This dedicated link isolates high-throughput video triggers from wireless network degradation.
 *   **Tablet Controller (Local Port `3000`):** Connects to a dedicated, high-speed 5GHz wireless access point, giving operators full mobility throughout the installation environment.
-*   **External Hardware Agent (`192.168.1.50`):** Managed by an independent hardware development team. Connects via Cat6 Ethernet or local 5GHz Wi-Fi to listen for standardized control packets.
+*   **External Hardware Agents (`raspberry-pi-1`, `raspberry-pi-2`):** Managed by an independent hardware development team. Exactly two agents connect via Cat6 Ethernet or local 5GHz Wi-Fi with distinct `client_id` values and receive identical standardized control packets.
 
 ---
 
@@ -75,14 +75,12 @@ Media properties (`video_url` and `video_duration_ms`) are mapped directly to th
           "subZones": [
             {
               "element_id": "foyer_accent",
-              "color_hex": "#FFB347",
-              "intensity_percent": 80,
+              "intensity": 0.8,
               "animation_duration_ms": 500
             },
             {
               "element_id": "foyer_ceiling",
-              "color_hex": "#FFF4D6",
-              "intensity_percent": 65,
+              "intensity": 0.65,
               "animation_duration_ms": 700
             }
           ]
@@ -97,14 +95,12 @@ Media properties (`video_url` and `video_duration_ms`) are mapped directly to th
           "subZones": [
             {
               "element_id": "corridor_wall_left",
-              "color_hex": "#4A90E2",
-              "intensity_percent": 100,
+              "intensity": 1,
               "animation_duration_ms": 750
             },
             {
               "element_id": "corridor_wall_right",
-              "color_hex": "#7B61FF",
-              "intensity_percent": 90,
+              "intensity": 0.9,
               "animation_duration_ms": 750
             }
           ]
@@ -120,8 +116,8 @@ Media properties (`video_url` and `video_duration_ms`) are mapped directly to th
 
 * **Areas:** Macroscopic environments acting as the structural parent container for sequence chains. Each Area has a `sequence_order` used by continuous playback.
 * **Zones:** Ordered elements within an Area that carry a stable machine-readable `id` and an explicit `sequence_order` ranking. Each Zone acts as a single cohesive media block—storing its own `video_url`, `video_duration_ms`, and `video_crossfade_duration_ms`. IDs are used for network and hardware lookups; display names must never be treated as identifiers.
-* **Sub-Zones (Lights):** Component partitions nested inside a Zone. Each sub-zone represents exactly one controllable light/physical element and defines its `element_id`, requested `color_hex`, `intensity_percent`, and `animation_duration_ms`. A Zone can contain multiple sub-zones, so activating a Zone can control multiple lights together. A separate Light entity is not used. Raw GPIO/pin properties remain inside the Raspberry Pi configuration so the shared data stays hardware-agnostic.
-* **Lighting Validation:** `color_hex` must match `^#[0-9A-Fa-f]{6}$`; `intensity_percent` must be an integer from `0` through `100`; and `animation_duration_ms` must be a non-negative integer. Without a separate animation type, the duration always means a linear transition from the current output value to the requested value.
+* **Sub-Zones (Lights):** Component partitions nested inside a Zone. Each sub-zone represents exactly one controllable light/physical element and defines its `element_id`, requested `intensity` (`0`–`1`), and `animation_duration_ms`. A Zone can contain multiple sub-zones, so activating a Zone can control multiple lights together. A separate Light entity is not used. Raw GPIO/pin properties remain inside the Raspberry Pi configuration so the shared data stays hardware-agnostic.
+* **Lighting Validation:** `intensity` must be a number from `0` through `1`; and `animation_duration_ms` must be a non-negative integer. Without a separate animation type, the duration always means a linear transition from the current output value to the requested value.
 * **Video Transition Validation:** `video_crossfade_duration_ms` must be a non-negative integer no greater than `video_duration_ms`. The next Zone starts at `video_duration_ms - video_crossfade_duration_ms`, allowing the fade to finish exactly when the outgoing video duration ends.
 * **Timing Units:** All protocol and configuration durations use milliseconds to avoid floating-point conversion and ambiguity.
 
@@ -149,13 +145,13 @@ Communication between nodes relies on a strict, bidirectional **Transactional Ac
 * **`system-layout` (Server ➔ Tablet UI):** Broadcasts the raw structural metadata graph at initial connection, allowing the Tablet UI to dynamically generate control elements.
 * **`area-activation` [With Callback] (Tablet UI ➔ Server ➔ Tablet UI):** Starts continuous playback from the selected Area. The server plays every Zone in that Area, continues through subsequent Areas by `sequence_order`, and loops from the final Zone of the final Area back to the first Zone of the first Area. The server verifies hardware and display readiness before returning success.
 * **`zone-activation` [With Callback] (Tablet UI ➔ Server ➔ Tablet UI):** Runs one selected Zone independently, including its video and all configured sub-zone lights. It does not continue to the next Zone.
-* **`subzone-control` [With Callback] (Tablet UI ➔ Server ➔ Raspberry Pi):** Overrides the current sequence, controls one selected sub-zone using its `element_id`, `action`, `color_hex`, `intensity_percent`, and `animation_duration_ms`, and plays that sub-zone's parent Zone video on the display.
-* **`sequence-stop` [With Callback] (Tablet UI ➔ Server ➔ Tablet UI):** Performs a normal operator stop. The server invalidates all active timelines, sends an empty replacement lighting state to the Pi, stops display playback, and returns success only after both nodes confirm.
-* **`hardware-readiness-check` [With Callback] (Server ➔ Raspberry Pi ➔ Server):** Confirms that the Pi is connected, its hardware registry is loaded, and it can accept commands. It does not energize any output.
-* **`hardware-apply-state` [With Callback] (Server ➔ Raspberry Pi ➔ Server):** Atomically replaces the complete lighting state. The Pi validates and schedules the command, applies all listed outputs together at `execute_at_ms`, and then returns one callback with status `success`. This single response represents both receipt and software-side application; it does not prove that a physical lamp energized unless separate electrical feedback hardware is installed.
-* **`hardware-heartbeat` (Raspberry Pi ➔ Server):** Emitted every **5 seconds** with Pi uptime and current status. If no heartbeat arrives for **30 seconds**, or the socket disconnects, the server marks the Pi offline and broadcasts `hardware-status` to the Tablet.
-* **`server-heartbeat` (Server ➔ Raspberry Pi):** Emitted every **5 seconds**. If the Pi receives no server heartbeat for **30 seconds**, its local watchdog cancels queued work and drives all outputs to their safe off state.
-* **`hardware-status` (Server ➔ Tablet UI):** Reports online/offline state. On an offline transition, the Tablet shows a persistent `"Raspberry Pi Offline"` popup until communication recovers.
+* **`subzone-control` [With Callback] (Tablet UI ➔ Server ➔ Raspberry Pi):** Overrides the current sequence, controls one selected sub-zone using its `element_id`, `action`, `intensity`, and `animation_duration_ms`, and plays that sub-zone's parent Zone video on the display.
+* **`sequence-stop` [With Callback] (Tablet UI ➔ Server ➔ Tablet UI):** Performs a normal operator stop. The server invalidates all active timelines, sends an empty replacement lighting state to both Pis, stops display playback, and returns success only after both nodes confirm.
+* **`hardware-readiness-check` [With Callback] (Server ➔ Raspberry Pi ➔ Server):** Confirms that the Pi is connected, its hardware registry is loaded, and it can accept commands. It does not energize any output. Exactly two hardware clients must pass readiness before combined hardware status is online.
+* **`hardware-apply-state` [With Callback] (Server ➔ Raspberry Pi ➔ Server):** Atomically replaces the complete lighting state. The same payload is broadcast to both connected Pis. Each Pi validates and schedules the command, applies all listed outputs together at `execute_at_ms`, and then returns one callback with status `success`. Both ACKs must succeed. This single response per Pi represents both receipt and software-side application; it does not prove that a physical lamp energized unless separate electrical feedback hardware is installed.
+* **`hardware-heartbeat` (Raspberry Pi ➔ Server):** Emitted every **5 seconds** with Pi uptime and current status. If no heartbeat arrives for **30 seconds** from either Pi, or either socket disconnects, the server marks combined hardware offline and broadcasts `hardware-status` to the Tablet.
+* **`server-heartbeat` (Server ➔ Raspberry Pi):** Emitted every **5 seconds** to every connected Pi. If a Pi receives no server heartbeat for **30 seconds**, its local watchdog cancels queued work and drives all outputs to their safe off state.
+* **`hardware-status` (Server ➔ Tablet UI):** Reports a single combined online/offline state for both Pis. Online requires both agents ready. On an offline transition, the Tablet shows a persistent `"Raspberry Pi Offline"` popup until communication recovers.
 * **`display-readiness-check` [With Callback] (Server ➔ Large Monitor Display ➔ Server):** Confirms that the display heartbeat is active, both video buffers are available, and the media engine can accept preparation and playback commands.
 * **`play-video-transition` [With Callback] (Server ➔ Large Monitor Display ➔ Server):** Directs the display to run its dual-buffer fade at `execute_at_ms`. After the first frame is presented onscreen, the display returns one callback with status `success`.
 * **`prepare-video` [With Callback] (Server ➔ Large Monitor Display ➔ Server):** Preloads and decodes the next video. The display must acknowledge `ready` before the server schedules the transition.
@@ -257,12 +253,12 @@ To deliver synchronous performance where visual components dissolve smoothly and
 ### A. Normalized Success & Transition Sequence
 
 1. **Operator Interaction:** The operator triggers "Area 1" via the Tablet UI. The UI locks its buttons and initiates the transactional handshake loop.
-2. **Readiness Verification:** The Central Laptop Server checks both the Raspberry Pi and display. The Pi validates that its registry and output drivers are available; the display confirms that its media engine is ready. Each returns an ACK within the configured readiness timeout.
+2. **Readiness Verification:** The Central Laptop Server checks both Raspberry Pis and the display. Each Pi validates that its registry and output drivers are available; the display confirms that its media engine is ready. Each returns an ACK within the configured readiness timeout.
 3. **UI Feedback:** The server executes the Tablet UI's callback. The Tablet renders a **Success Toast Notification** and shifts into active runtime mode.
-4. **Zone 1 Preparation and Actuation:** The server sends `prepare-video` and waits for the display's `ready` ACK. It then sends one atomic `hardware-apply-state` transaction and one `play-video-transition` transaction containing the same `execute_at_ms`. After execution, the Pi returns `success` when its output transition begins and the display returns `success` after presenting its first frame.
+4. **Zone 1 Preparation and Actuation:** The server sends `prepare-video` and waits for the display's `ready` ACK. It then broadcasts one atomic `hardware-apply-state` transaction to both Pis and one `play-video-transition` transaction containing the same `execute_at_ms`. After execution, each Pi returns `success` when its output transition begins and the display returns `success` after presenting its first frame.
 5. **Look-Ahead Pre-Caching:** While Zone 1 executes, the server checks the upcoming sequence node. It instructs the display node to cache and decode the **Zone 2** video file (`/videos/corridor-reveal.mp4`) into the hidden secondary background buffer, positioning it at frame zero at an opacity level of `0.0`. The display returns `ready` when preparation completes.
 6. **The Cross-Fade Threshold:** For a 12000ms video with a 500ms cross-fade, the server starts the next Zone at `12000 - 500 = 11500ms` after the current Zone began:
-* It sends one replacement state containing the `corridor-reveal` elements. The Pi transitions omitted foyer outputs off while applying the new colors and intensities in one scheduled operation, preventing an intermediate or duplicated state.
+* It broadcasts one replacement state containing the `corridor-reveal` elements to both Pis. Each Pi transitions omitted foyer outputs off while applying the new intensities in one scheduled operation, preventing an intermediate or duplicated state.
 * It commands the display to execute a hardware-accelerated fade. Over a 500ms window, the primary foreground buffer fades to an opacity of `0.0` while the background buffer fades up to `1.0`.
 
 
@@ -280,7 +276,7 @@ To deliver synchronous performance where visual components dissolve smoothly and
 
 1. **Operator Interaction:** The operator selects a sub-zone and chooses activate or deactivate.
 2. **Override:** The server invalidates any active Area, Zone, or sub-zone timeline.
-3. **Command Dispatch:** The server sends an atomic replacement state containing only the selected `element_id`, color, intensity, animation duration, action, transaction ID, and execution timestamp. Every other Pi output is transitioned to its safe off state.
+3. **Command Dispatch:** The server broadcasts an atomic replacement state containing only the selected `element_id`, intensity, animation duration, action, transaction ID, and execution timestamp to both Pis. Every other Pi output is transitioned to its safe off state.
 4. **Acknowledgement:** After beginning the requested output transition, the Pi returns one callback with `success` or an error status.
 5. **Parent Video:** The display prepares and plays the selected sub-zone's parent Zone video using the same execution timestamp, then returns `success` after its first frame is presented.
 6. **Completion:** When the parent video ends, the selected sub-zone light remains active until another control, normal stop, emergency stop, or fail-safe replaces it.
@@ -420,8 +416,7 @@ networks:
     {
       "element_id": "foyer_accent",
       "action": "activate",
-      "color_hex": "#FFB347",
-      "intensity_percent": 80,
+      "intensity": 0.8,
       "animation_duration_ms": 500
     }
   ]
@@ -430,7 +425,7 @@ networks:
 ```
 
 
-*(`scope` is constrained to `"area"`, `"zone"`, `"subzone"`, or `"system"`; `"system"` is used for a normal all-off stop and requires `area_id` and `zone_id` to be `null`. `mode` is always `"replace"`. Each `lights` item is the desired hardware state of one sub-zone, not a separate Light entity, and its `action` is constrained to `"activate"` or `"deactivate"`. The array supports sending every sub-zone in a Zone atomically; a single sub-zone command contains one item, and `[]` means all outputs off. Every registered output omitted from `lights` must transition to its safe off state. The server and Pi must reject invalid color, intensity, duration, timestamp, or element values.)*
+*(`scope` is constrained to `"area"`, `"zone"`, `"subzone"`, or `"system"`; `"system"` is used for a normal all-off stop and requires `area_id` and `zone_id` to be `null`. `mode` is always `"replace"`. Each `lights` item is the desired hardware state of one sub-zone, not a separate Light entity, and its `action` is constrained to `"activate"` or `"deactivate"`. The array supports sending every sub-zone in a Zone atomically; a single sub-zone command contains one item, and `[]` means all outputs off. Every registered output omitted from `lights` must transition to its safe off state. The server and Pis must reject invalid intensity, duration, timestamp, or element values. The Server broadcasts the identical payload to both connected hardware clients.)*
 * **Mandatory Hardware Execution Steps:**
 1. Intercept the inbound network message frame.
 2. Validate the complete payload and map each stable `element_id` against the Pi's internal GPIO/output registry.
