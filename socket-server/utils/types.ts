@@ -1,13 +1,11 @@
-export type HexColor = `#${string}`;
-
 /**
  * One controllable light/physical element inside a Zone.
  * SubZone is the lighting entity; there is no separate Light entity.
  */
 export interface SubZone {
   element_id: string;
-  color_hex: HexColor;
-  intensity_percent: number;
+  /** Brightness from 0 (off) to 1 (full intensity). */
+  intensity: number;
   animation_duration_ms: number;
   tabletImageUrl: string;
 }
@@ -82,8 +80,7 @@ export interface SubZoneControlRequest {
   zone_id: Zone["id"];
   element_id: SubZone["element_id"];
   action: LightAction;
-  color_hex: HexColor;
-  intensity_percent: number;
+  intensity: number;
   animation_duration_ms: number;
 }
 

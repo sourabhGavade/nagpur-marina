@@ -4,20 +4,14 @@ import type {
   AreaActivationRequest,
   DisplayHeartbeat,
   HardwareHeartbeat,
-  HexColor,
   SocketHandshakeAuth,
   SubZoneControlRequest,
   ZoneActivationRequest,
 } from "./types.ts";
 
-const hexColorSchema = z.custom<HexColor>(
-  (value) => typeof value === "string" && /^#[0-9A-Fa-f]{6}$/.test(value),
-  "Color must use the #RRGGBB format",
-);
-
 const positiveOrderSchema = z.number().int().min(1);
 const durationSchema = z.number().int().nonnegative();
-const intensitySchema = z.number().int().min(0).max(100);
+const intensitySchema = z.number().min(0).max(1);
 const nonEmptyStringSchema = z.string().trim().min(1);
 
 function reportDuplicates<T>(
@@ -37,8 +31,7 @@ function reportDuplicates<T>(
 
 export const SubZoneSchema = z.object({
   element_id: nonEmptyStringSchema,
-  color_hex: hexColorSchema,
-  intensity_percent: intensitySchema,
+  intensity: intensitySchema,
   animation_duration_ms: durationSchema,
   tabletImageUrl: nonEmptyStringSchema,
 });
@@ -146,8 +139,7 @@ export const SubZoneControlRequestSchema = z.object({
   zone_id: nonEmptyStringSchema,
   element_id: nonEmptyStringSchema,
   action: z.enum(["activate", "deactivate"]),
-  color_hex: hexColorSchema,
-  intensity_percent: intensitySchema,
+  intensity: intensitySchema,
   animation_duration_ms: durationSchema,
 });
 

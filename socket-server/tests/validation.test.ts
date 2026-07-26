@@ -12,9 +12,9 @@ describe("configuration validation", () => {
     expect(AppConfigSchema.parse(config)).toEqual(config);
   });
 
-  test("rejects an invalid color", () => {
+  test("rejects an intensity outside 0–1", () => {
     const invalidConfig = structuredClone(config);
-    invalidConfig.areas[0]!.zones[0]!.subZones[0]!.color_hex = "#GG0000";
+    invalidConfig.areas[0]!.zones[0]!.subZones[0]!.intensity = 80;
 
     expect(() => AppConfigSchema.parse(invalidConfig)).toThrow();
   });
@@ -62,8 +62,7 @@ describe("Tablet request validation", () => {
           zone_id: "foyer-welcome",
           element_id: "corridor_wall_left",
           action: "activate",
-          color_hex: "#FFFFFF",
-          intensity_percent: 50,
+          intensity: 0.5,
           animation_duration_ms: 500,
         },
         config,

@@ -13,8 +13,8 @@ import { io, type Socket } from "socket.io-client";
 
 export interface SubZone {
   element_id: string;
-  color_hex: `#${string}`;
-  intensity_percent: number;
+  /** Brightness from 0 (off) to 1 (full intensity). */
+  intensity: number;
   animation_duration_ms: number;
   tabletImageUrl: string;
 }
@@ -200,8 +200,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
             zone_id: Zone["id"];
             element_id: SubZone["element_id"];
             action: "activate" | "deactivate";
-            color_hex: SubZone["color_hex"];
-            intensity_percent: number;
+            intensity: number;
             animation_duration_ms: number;
           },
     ) =>
@@ -274,8 +273,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         zone_id: zoneId,
         element_id: subZone.element_id,
         action,
-        color_hex: subZone.color_hex,
-        intensity_percent: subZone.intensity_percent,
+        intensity: subZone.intensity,
         animation_duration_ms: subZone.animation_duration_ms,
       }),
     [emitCommand],

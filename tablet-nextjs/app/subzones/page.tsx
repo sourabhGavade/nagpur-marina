@@ -201,13 +201,8 @@ export default function SubZonesPage() {
                           }
                         >
                           <span>{formatElementName(subZone.element_id)}</span>
-                          <small>{subZone.intensity_percent}% intensity</small>
+                          <small>{subZone.intensity} intensity</small>
                         </button>
-                        <span
-                          className="subzone-color-dot"
-                          style={{ backgroundColor: subZone.color_hex }}
-                          aria-hidden="true"
-                        />
                         <button
                           type="button"
                           className={`area-play-button${
@@ -267,7 +262,7 @@ export default function SubZonesPage() {
                 {selectedEntry.area.name} / {selectedEntry.zone.name}
               </span>
               <h1>{formatElementName(selectedEntry.subZone.element_id)}</h1>
-              <p>{selectedEntry.subZone.intensity_percent}% intensity</p>
+              <p>{selectedEntry.subZone.intensity} intensity</p>
             </div>
           </>
         ) : (

@@ -275,8 +275,7 @@ export class ControlController {
     return {
       element_id: request.element_id,
       action: request.action,
-      color_hex: request.color_hex,
-      intensity_percent: request.intensity_percent,
+      intensity: request.intensity,
       animation_duration_ms: request.animation_duration_ms,
     };
   }

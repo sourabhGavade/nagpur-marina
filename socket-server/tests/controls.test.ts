@@ -8,10 +8,7 @@ function acknowledgeReadiness(
 ): void {
   socket.on(
     event,
-    (
-      payload: { transaction_id: string },
-      ack: (result: unknown) => void,
-    ) => {
+    (payload: { transaction_id: string }, ack: (result: unknown) => void) => {
       ack({
         transaction_id: payload.transaction_id,
         status: "ready",
@@ -101,10 +98,7 @@ describe("Tablet controls", () => {
   function acknowledgeVideoPreparation(): void {
     display.on(
       "prepare-video",
-      (
-        payload: { transaction_id: string },
-        ack: (result: unknown) => void,
-      ) => {
+      (payload: { transaction_id: string }, ack: (result: unknown) => void) => {
         ack({
           transaction_id: payload.transaction_id,
           status: "ready",
@@ -138,11 +132,7 @@ describe("Tablet controls", () => {
       });
     });
     const result = new Promise<any>((resolve) => {
-      tablet.emit(
-        "zone-activation",
-        { zone_id: "foyer-welcome" },
-        resolve,
-      );
+      tablet.emit("zone-activation", { zone_id: "foyer-welcome" }, resolve);
     });
 
     const [command, hardwarePayload, videoPayload] = await Promise.all([
@@ -186,8 +176,7 @@ describe("Tablet controls", () => {
           zone_id: "foyer-welcome",
           element_id: "foyer_accent",
           action: "activate",
-          color_hex: "#112233",
-          intensity_percent: 55,
+          intensity: 0.55,
           animation_duration_ms: 300,
         },
         resolve,
@@ -201,8 +190,7 @@ describe("Tablet controls", () => {
       {
         element_id: "foyer_accent",
         action: "activate",
-        color_hex: "#112233",
-        intensity_percent: 55,
+        intensity: 0.55,
         animation_duration_ms: 300,
       },
     ]);
@@ -251,20 +239,12 @@ describe("Tablet controls", () => {
     });
 
     const firstResult = new Promise<any>((resolve) => {
-      tablet.emit(
-        "zone-activation",
-        { zone_id: "foyer-welcome" },
-        resolve,
-      );
+      tablet.emit("zone-activation", { zone_id: "foyer-welcome" }, resolve);
     });
     await firstPrepared;
 
     const secondResult = new Promise<any>((resolve) => {
-      tablet.emit(
-        "zone-activation",
-        { zone_id: "corridor-reveal" },
-        resolve,
-      );
+      tablet.emit("zone-activation", { zone_id: "corridor-reveal" }, resolve);
     });
     await waitUntil(
       () => server.runtime.state.activeZoneId === "corridor-reveal",
