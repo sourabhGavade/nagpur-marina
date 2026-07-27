@@ -26,10 +26,6 @@ export interface Area {
   zones: Zone[];
 }
 
-export interface AppConfig {
-  areas: Area[];
-}
-
 export type LightingModel = "main-model" | "clubhouse";
 
 export interface Lighting {
@@ -38,6 +34,11 @@ export interface Lighting {
   sequence_order: number;
   model: LightingModel;
   subZones: SubZone[];
+}
+
+export interface AppConfig {
+  areas: Area[];
+  lightings: Lighting[];
 }
 
 export type ClientRole = "tablet" | "hardware" | "display";
@@ -58,12 +59,18 @@ export interface SubZoneHardwareState extends SubZone {
   action: LightAction;
 }
 
-export type HardwareStateScope = "area" | "zone" | "subzone" | "system";
+export type HardwareStateScope =
+  | "area"
+  | "zone"
+  | "subzone"
+  | "lighting"
+  | "system";
 
 export interface HardwareApplyStatePayload {
   transaction_id: string;
   area_id: Area["id"] | null;
   zone_id: Zone["id"] | null;
+  lighting_id: Lighting["id"] | null;
   scope: HardwareStateScope;
   mode: "replace";
   execute_at_ms: number;
@@ -88,6 +95,11 @@ export interface SubZoneControlRequest {
   action: LightAction;
   intensity: number;
   animation_duration_ms: number;
+}
+
+export interface LightingControlRequest {
+  lighting_id: Lighting["id"];
+  action: LightAction;
 }
 
 export type CommandErrorCode =
@@ -281,7 +293,7 @@ export interface DeviceStatus {
   online: boolean;
 }
 
-export type RuntimeMode = "idle" | "area" | "zone" | "subzone";
+export type RuntimeMode = "idle" | "area" | "zone" | "subzone" | "lighting";
 export type RuntimePlaybackState = "idle" | "playing" | "paused";
 
 export interface RuntimeStatus {
@@ -289,6 +301,7 @@ export interface RuntimeStatus {
   playback_state: RuntimePlaybackState;
   active_area_id: Area["id"] | null;
   active_zone_id: Zone["id"] | null;
+  active_lighting_id: Lighting["id"] | null;
   active_element_id: SubZone["element_id"] | null;
 }
 
@@ -323,6 +336,10 @@ export interface TabletToServerEvents {
   ) => void;
   "subzone-control": (
     payload: SubZoneControlRequest,
+    ack: SocketAck<CommandResult>,
+  ) => void;
+  "lighting-control": (
+    payload: LightingControlRequest,
     ack: SocketAck<CommandResult>,
   ) => void;
   "sequence-pause": (ack: SocketAck<CommandResult>) => void;

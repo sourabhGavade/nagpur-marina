@@ -2,7 +2,7 @@ import type { ClientRole } from "../utils/types.ts";
 import { EXPECTED_HARDWARE_CLIENTS } from "./client-registry.ts";
 
 export type NodeRole = Exclude<ClientRole, "tablet">;
-export type RuntimeMode = "idle" | "area" | "zone" | "subzone";
+export type RuntimeMode = "idle" | "area" | "zone" | "subzone" | "lighting";
 
 export interface NodeHealth {
   connected: boolean;
@@ -38,6 +38,7 @@ export class RuntimeState {
   mode: RuntimeMode = "idle";
   activeAreaId: number | null = null;
   activeZoneId: string | null = null;
+  activeLightingId: string | null = null;
   activeElementId: string | null = null;
   generation = 0;
   paused = false;
@@ -207,6 +208,7 @@ export class RuntimeState {
     this.mode = "idle";
     this.activeAreaId = null;
     this.activeZoneId = null;
+    this.activeLightingId = null;
     this.activeElementId = null;
     this.paused = false;
     this.activeTransactionIds.clear();

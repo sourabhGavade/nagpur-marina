@@ -1,5 +1,9 @@
 import { ZodError } from "zod";
-import type { AppSocket, ClientRegistry } from "../lib/client-registry.ts";
+import {
+  LIGHTING_MODEL_TO_HARDWARE_CLIENT,
+  type AppSocket,
+  type ClientRegistry,
+} from "../lib/client-registry.ts";
 import { AreaSequenceController } from "./area-sequence-controller.ts";
 import type { RuntimeController } from "./runtime-controller.ts";
 import {
@@ -13,12 +17,14 @@ import type {
   CommandError,
   CommandErrorCode,
   CommandResult,
+  Lighting,
   SocketAck,
   SubZoneControlRequest,
   SubZoneHardwareState,
   Zone,
 } from "../utils/types.ts";
 import {
+  parseLightingControlRequest,
   parseSubZoneControlRequest,
   parseZoneActivationRequest,
 } from "../utils/validation.ts";
@@ -52,6 +58,9 @@ export class ControlController {
     });
     socket.on("subzone-control", (payload, ack) => {
       void this.handleSubZoneControl(payload, ack);
+    });
+    socket.on("lighting-control", (payload, ack) => {
+      void this.handleLightingControl(payload, ack);
     });
     socket.on("sequence-stop", (ack) => {
       void this.handleSequenceStop(ack);
@@ -103,13 +112,7 @@ export class ControlController {
         action: "activate",
       }));
 
-      await this.activate(
-        operationId,
-        area,
-        zone,
-        lights,
-        "zone",
-      );
+      await this.activate(operationId, area, zone, lights, "zone");
       this.runtime.broadcastRuntimeStatus();
       reply({ status: "success", transaction_id: operationId });
     } catch (error) {
@@ -143,6 +146,61 @@ export class ControlController {
     }
   }
 
+  private async handleLightingControl(
+    payload: unknown,
+    ack: SocketAck<CommandResult>,
+  ): Promise<void> {
+    const operationId = createTransactionId("lighting");
+    const reply = this.once(ack);
+
+    try {
+      this.assertControlsAvailable();
+      const request = parseLightingControlRequest(payload, this.appConfig);
+      const lighting = this.findLighting(request.lighting_id);
+      const hardwareClientId = LIGHTING_MODEL_TO_HARDWARE_CLIENT[lighting.model];
+      const lights: SubZoneHardwareState[] = lighting.subZones.map(
+        (subZone) => ({
+          ...subZone,
+          action: request.action,
+        }),
+      );
+
+      if (!this.runtime.state.isOnline("hardware")) {
+        throw new Error("hardware_offline");
+      }
+      const generation = this.runtime.state.invalidate();
+      this.runtime.state.mode = "lighting";
+      this.runtime.state.activeAreaId = null;
+      this.runtime.state.activeZoneId = null;
+      this.runtime.state.activeLightingId = lighting.id;
+      this.runtime.state.activeElementId = null;
+
+      try {
+        const executeAtMs = this.runtime.nextExecutionTime();
+        await this.runtime.applyHardwareStateToClient(hardwareClientId, {
+          area_id: null,
+          zone_id: null,
+          lighting_id: lighting.id,
+          scope: "lighting",
+          mode: "replace",
+          execute_at_ms: executeAtMs,
+          lights,
+        });
+        this.assertCurrent(generation);
+      } catch (error) {
+        if (this.runtime.state.isCurrent(generation)) {
+          this.runtime.state.invalidate();
+        }
+        throw error;
+      }
+
+      this.runtime.broadcastRuntimeStatus();
+      reply({ status: "success", transaction_id: operationId });
+    } catch (error) {
+      reply(this.toCommandError(operationId, error));
+    }
+  }
+
   private async activate(
     operationId: string,
     area: Area,
@@ -155,6 +213,7 @@ export class ControlController {
     this.runtime.state.mode = mode;
     this.runtime.state.activeAreaId = area.id;
     this.runtime.state.activeZoneId = zone.id;
+    this.runtime.state.activeLightingId = null;
     this.runtime.state.activeElementId =
       mode === "subzone" ? (lights[0]?.element_id ?? null) : null;
 
@@ -167,6 +226,7 @@ export class ControlController {
         this.runtime.applyHardwareState({
           area_id: area.id,
           zone_id: zone.id,
+          lighting_id: null,
           scope: mode,
           mode: "replace",
           execute_at_ms: executeAtMs,
@@ -268,6 +328,16 @@ export class ControlController {
     throw new Error(`Unknown Zone: ${zoneId}`);
   }
 
+  private findLighting(lightingId: string): Lighting {
+    const lighting = this.appConfig.lightings.find(
+      ({ id }) => id === lightingId,
+    );
+    if (!lighting) {
+      throw new Error(`Unknown Lighting: ${lightingId}`);
+    }
+    return lighting;
+  }
+
   private toHardwareState(
     request: SubZoneControlRequest,
   ): SubZoneHardwareState {
@@ -307,8 +377,8 @@ export class ControlController {
       errorCode =
         normalizedMessage.includes("display") ||
         normalizedMessage.includes("video")
-        ? "display_offline"
-        : "hardware_offline";
+          ? "display_offline"
+          : "hardware_offline";
     } else if (message === "hardware_offline") {
       errorCode = "hardware_offline";
     } else if (message === "display_offline") {

@@ -4,6 +4,7 @@ import type {
   AreaActivationRequest,
   DisplayHeartbeat,
   HardwareHeartbeat,
+  LightingControlRequest,
   SocketHandshakeAuth,
   SubZoneControlRequest,
   ZoneActivationRequest,
@@ -85,9 +86,27 @@ export const AreaSchema = z
     );
   });
 
+export const LightingSchema = z
+  .object({
+    id: nonEmptyStringSchema,
+    name: nonEmptyStringSchema,
+    sequence_order: positiveOrderSchema,
+    model: z.enum(["main-model", "clubhouse"]),
+    subZones: z.array(SubZoneSchema).min(1),
+  })
+  .superRefine((lighting, ctx) => {
+    reportDuplicates(
+      lighting.subZones.map(({ element_id }) => element_id),
+      "Sub-Zone element_id",
+      ctx,
+      ["subZones"],
+    );
+  });
+
 export const AppConfigSchema = z
   .object({
     areas: z.array(AreaSchema).min(1),
+    lightings: z.array(LightingSchema).min(1),
   })
   .superRefine((config, ctx) => {
     reportDuplicates(
@@ -118,6 +137,32 @@ export const AppConfigSchema = z
       ctx,
       ["areas"],
     );
+
+    reportDuplicates(
+      config.lightings.map(({ id }) => id),
+      "Lighting id",
+      ctx,
+      ["lightings"],
+    );
+    reportDuplicates(
+      config.lightings.flatMap(({ subZones }) =>
+        subZones.map(({ element_id }) => element_id),
+      ),
+      "Lighting Sub-Zone element_id",
+      ctx,
+      ["lightings"],
+    );
+
+    for (const model of ["main-model", "clubhouse"] as const) {
+      reportDuplicates(
+        config.lightings
+          .filter((lighting) => lighting.model === model)
+          .map(({ sequence_order }) => sequence_order),
+        `${model} Lighting sequence_order`,
+        ctx,
+        ["lightings"],
+      );
+    }
   });
 
 export const SocketHandshakeAuthSchema = z.object({
@@ -139,6 +184,11 @@ export const SubZoneControlRequestSchema = z.object({
   action: z.enum(["activate", "deactivate"]),
   intensity: intensitySchema,
   animation_duration_ms: durationSchema,
+});
+
+export const LightingControlRequestSchema = z.object({
+  lighting_id: nonEmptyStringSchema,
+  action: z.enum(["activate", "deactivate"]),
 });
 
 export const HardwareHeartbeatSchema = z.object({
@@ -336,6 +386,17 @@ export function parseSubZoneControlRequest(
         });
       }
     },
+  ).parse(value);
+}
+
+export function parseLightingControlRequest(
+  value: unknown,
+  config: AppConfig,
+): LightingControlRequest {
+  return LightingControlRequestSchema.refine(
+    ({ lighting_id }) =>
+      config.lightings.some(({ id }) => id === lighting_id),
+    { message: "Unknown Lighting", path: ["lighting_id"] },
   ).parse(value);
 }
 

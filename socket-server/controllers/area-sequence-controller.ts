@@ -146,6 +146,7 @@ export class AreaSequenceController {
       this.runtime.applyHardwareState({
         area_id: item.area.id,
         zone_id: item.zone.id,
+        lighting_id: null,
         scope: "area",
         mode: "replace",
         execute_at_ms: executeAtMs,
@@ -158,6 +159,7 @@ export class AreaSequenceController {
   private setActive(item: SequenceItem): void {
     this.runtime.state.activeAreaId = item.area.id;
     this.runtime.state.activeZoneId = item.zone.id;
+    this.runtime.state.activeLightingId = null;
     this.runtime.state.activeElementId = null;
   }
 

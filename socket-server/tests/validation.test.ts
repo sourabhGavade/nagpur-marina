@@ -3,6 +3,7 @@ import { config } from "../utils/config.ts";
 import {
   AppConfigSchema,
   parseAreaActivationRequest,
+  parseLightingControlRequest,
   parseSubZoneControlRequest,
   parseZoneActivationRequest,
 } from "../utils/validation.ts";
@@ -34,6 +35,13 @@ describe("configuration validation", () => {
 
     expect(() => AppConfigSchema.parse(invalidConfig)).toThrow();
   });
+
+  test("rejects duplicate Lighting ids", () => {
+    const invalidConfig = structuredClone(config);
+    invalidConfig.lightings[1]!.id = invalidConfig.lightings[0]!.id;
+
+    expect(() => AppConfigSchema.parse(invalidConfig)).toThrow();
+  });
 });
 
 describe("Tablet request validation", () => {
@@ -46,12 +54,27 @@ describe("Tablet request validation", () => {
     ).toEqual({ zone_id: "foyer-welcome" });
   });
 
+  test("accepts known Lighting ids", () => {
+    expect(
+      parseLightingControlRequest(
+        { lighting_id: "lighting-1", action: "activate" },
+        config,
+      ),
+    ).toEqual({ lighting_id: "lighting-1", action: "activate" });
+  });
+
   test("rejects unknown entities", () => {
     expect(() =>
       parseAreaActivationRequest({ area_id: 999 }, config),
     ).toThrow();
     expect(() =>
       parseZoneActivationRequest({ zone_id: "missing-zone" }, config),
+    ).toThrow();
+    expect(() =>
+      parseLightingControlRequest(
+        { lighting_id: "missing-lighting", action: "activate" },
+        config,
+      ),
     ).toThrow();
   });
 

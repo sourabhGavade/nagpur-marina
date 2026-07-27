@@ -25,6 +25,12 @@ const sections = [
     title: "Sub-zones",
     description: "Control individual lighting elements",
   },
+  {
+    key: "lighting",
+    number: "04",
+    title: "Lighting",
+    description: "Toggle Main Model and Clubhouse lighting",
+  },
 ] as const;
 
 export default function JourneyPage() {
@@ -61,10 +67,12 @@ export default function JourneyPage() {
       ),
     0,
   );
+  const lightingCount = layout.lightings.length;
   const counts = {
     areas: areaCount,
     zones: zoneCount,
     subzones: subZoneCount,
+    lighting: lightingCount,
   };
 
   return (
@@ -99,6 +107,8 @@ export default function JourneyPage() {
                   router.push("/areas");
                 } else if (section.key === "zones") {
                   router.push("/zones");
+                } else if (section.key === "lighting") {
+                  router.push("/lighting");
                 } else {
                   router.push("/subzones");
                 }

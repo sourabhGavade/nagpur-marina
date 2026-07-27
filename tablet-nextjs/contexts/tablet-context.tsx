@@ -35,8 +35,19 @@ export interface Area {
   zones: Zone[];
 }
 
+export type LightingModel = "main-model" | "clubhouse";
+
+export interface Lighting {
+  id: string;
+  name: string;
+  sequence_order: number;
+  model: LightingModel;
+  subZones: SubZone[];
+}
+
 export interface AppConfig {
   areas: Area[];
+  lightings: Lighting[];
 }
 
 export type ConnectionState =
@@ -55,10 +66,11 @@ export type CommandResult =
     };
 
 export interface RuntimeStatus {
-  mode: "idle" | "area" | "zone" | "subzone";
+  mode: "idle" | "area" | "zone" | "subzone" | "lighting";
   playback_state: "idle" | "playing" | "paused";
   active_area_id: number | null;
   active_zone_id: string | null;
+  active_lighting_id: string | null;
   active_element_id: string | null;
 }
 
@@ -77,6 +89,10 @@ interface TabletContextValue {
     zoneId: Zone["id"],
     subZone: SubZone,
     action?: "activate" | "deactivate",
+  ) => Promise<CommandResult>;
+  controlLighting: (
+    lightingId: Lighting["id"],
+    action: "activate" | "deactivate",
   ) => Promise<CommandResult>;
   pauseSequence: () => Promise<CommandResult>;
   resumeSequence: () => Promise<CommandResult>;
@@ -104,6 +120,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
     playback_state: "idle",
     active_area_id: null,
     active_zone_id: null,
+    active_lighting_id: null,
     active_element_id: null,
   });
   const [errorMessage, setErrorMessage] = useState("");
@@ -120,6 +137,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
       playback_state: "idle",
       active_area_id: null,
       active_zone_id: null,
+      active_lighting_id: null,
       active_element_id: null,
     });
   }, []);
@@ -158,6 +176,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         playback_state: "idle",
         active_area_id: null,
         active_zone_id: null,
+        active_lighting_id: null,
         active_element_id: null,
       });
     });
@@ -187,6 +206,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         | "area-activation"
         | "zone-activation"
         | "subzone-control"
+        | "lighting-control"
         | "sequence-pause"
         | "sequence-resume"
         | "sequence-stop",
@@ -199,6 +219,10 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
             action: "activate" | "deactivate";
             intensity: number;
             animation_duration_ms: number;
+          }
+        | {
+            lighting_id: Lighting["id"];
+            action: "activate" | "deactivate";
           },
     ) =>
       new Promise<CommandResult>((resolve) => {
@@ -228,6 +252,15 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
           event === "subzone-control" &&
           payload &&
           "element_id" in payload
+        ) {
+          socket.emit(event, payload, resolve);
+          return;
+        }
+
+        if (
+          event === "lighting-control" &&
+          payload &&
+          "lighting_id" in payload
         ) {
           socket.emit(event, payload, resolve);
           return;
@@ -276,6 +309,18 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
     [emitCommand],
   );
 
+  const controlLighting = useCallback(
+    (
+      lightingId: Lighting["id"],
+      action: "activate" | "deactivate",
+    ) =>
+      emitCommand("lighting-control", {
+        lighting_id: lightingId,
+        action,
+      }),
+    [emitCommand],
+  );
+
   const stopSequence = useCallback(
     () => emitCommand("sequence-stop"),
     [emitCommand],
@@ -311,6 +356,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         activateArea,
         activateZone,
         controlSubZone,
+        controlLighting,
         pauseSequence,
         resumeSequence,
         stopSequence,

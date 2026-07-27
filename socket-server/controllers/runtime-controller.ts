@@ -257,6 +257,49 @@ export class RuntimeController {
     }
   }
 
+  async applyHardwareStateToClient(
+    clientId: string,
+    payload: Omit<HardwareApplyStatePayload, "transaction_id">,
+  ): Promise<void> {
+    if (!this.state.isOnline("hardware")) {
+      throw new Error("hardware_offline");
+    }
+
+    const socket = this.registry.getHardwareClient(clientId);
+    if (!socket) {
+      throw new Error("hardware_offline");
+    }
+
+    const transactionId = createTransactionId("apply-state");
+    const timeoutMs = Math.max(
+      1_000,
+      payload.execute_at_ms - Date.now() + 1_000,
+    );
+    const fullPayload = { transaction_id: transactionId, ...payload };
+
+    const result = await requestAck({
+      socket,
+      runtime: this.state,
+      transactionId,
+      timeoutMs,
+      schema: HardwareApplyResultSchema,
+      emit: (ack) => {
+        socket.emit(
+          "hardware-apply-state",
+          fullPayload,
+          ack as SocketAck<HardwareApplyResult>,
+        );
+      },
+    });
+
+    if (result.transaction_id !== transactionId) {
+      throw new Error("Hardware ACK transaction_id does not match");
+    }
+    if (result.status === "error") {
+      throw new Error(`${result.error_code}: ${result.message}`);
+    }
+  }
+
   async playZoneVideo(zone: Zone, executeAtMs: number): Promise<void> {
     const socket = this.registry.getDisplay();
     if (!socket?.connected || !this.state.isOnline("display")) {
@@ -370,6 +413,7 @@ export class RuntimeController {
             : "playing",
       active_area_id: this.state.activeAreaId,
       active_zone_id: this.state.activeZoneId,
+      active_lighting_id: this.state.activeLightingId,
       active_element_id: this.state.activeElementId,
     };
   }
@@ -569,6 +613,7 @@ export class RuntimeController {
             transaction_id: transactionId,
             area_id: null,
             zone_id: null,
+            lighting_id: null,
             scope: "system",
             mode: "replace",
             execute_at_ms: Date.now() + this.safeExecutionLeadMs,

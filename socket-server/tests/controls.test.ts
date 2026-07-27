@@ -325,4 +325,87 @@ describe("Tablet controls", () => {
     expect(emergencyCount).toBe(6);
     expect(server.runtime.state.mode).toBe("idle");
   });
+
+  test("routes main-model lighting only to raspberry-pi-1", async () => {
+    let pi1Payload: HardwareApplyStatePayload | undefined;
+    let pi2Seen = false;
+
+    hardware.once("hardware-apply-state", (payload, ack) => {
+      pi1Payload = payload;
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
+      });
+    });
+    hardware2.once("hardware-apply-state", (_payload, ack) => {
+      pi2Seen = true;
+      ack({
+        transaction_id: _payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
+      });
+    });
+
+    const result = await new Promise<any>((resolve) => {
+      tablet.emit(
+        "lighting-control",
+        { lighting_id: "lighting-1", action: "activate" },
+        resolve,
+      );
+    });
+
+    await Bun.sleep(30);
+
+    expect(result.status).toBe("success");
+    expect(pi2Seen).toBe(false);
+    expect(pi1Payload).toBeDefined();
+    expect(pi1Payload!.lighting_id).toBe("lighting-1");
+    expect(pi1Payload!.scope).toBe("lighting");
+    expect(pi1Payload!.lights).toHaveLength(2);
+    expect(
+      pi1Payload!.lights.every((light) => light.action === "activate"),
+    ).toBe(true);
+    expect(server.runtime.state.activeLightingId).toBe("lighting-1");
+  });
+
+  test("routes clubhouse lighting only to raspberry-pi-2", async () => {
+    let pi2Payload: HardwareApplyStatePayload | undefined;
+    let pi1Seen = false;
+
+    hardware.once("hardware-apply-state", (_payload, ack) => {
+      pi1Seen = true;
+      ack({
+        transaction_id: _payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
+      });
+    });
+    hardware2.once("hardware-apply-state", (payload, ack) => {
+      pi2Payload = payload;
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
+      });
+    });
+
+    const result = await new Promise<any>((resolve) => {
+      tablet.emit(
+        "lighting-control",
+        { lighting_id: "lighting-2", action: "deactivate" },
+        resolve,
+      );
+    });
+
+    await Bun.sleep(30);
+
+    expect(result.status).toBe("success");
+    expect(pi1Seen).toBe(false);
+    expect(pi2Payload).toBeDefined();
+    expect(pi2Payload!.lighting_id).toBe("lighting-2");
+    expect(
+      pi2Payload!.lights.every((light) => light.action === "deactivate"),
+    ).toBe(true);
+  });
 });
