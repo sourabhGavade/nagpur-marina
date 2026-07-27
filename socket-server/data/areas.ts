@@ -1,23 +1,60 @@
 import type { Area } from "../utils/types.ts";
 import {
-  corridorReveal,
-  foyerWelcome,
-  galleryShowcase,
-  loungeFinale,
+  activeZone,
+  clubhouseInterior,
+  lifestyleAnchorsIntro,
+  marinaBayview,
+  marinaEuphoria,
+  marinaGrand,
+  marinaGrove,
+  marinaReserve,
+  marinaRiviera,
+  masterplanReveal,
+  neighbourhoodParksOrchards,
+  serenityZone,
+  waterfrontAmenities,
+  waterfrontBeach,
+  whyNagpurMarina,
 } from "./zones.ts";
 
-export const entranceExperience: Area = {
+const contextAndVision: Area = {
   id: 1,
   sequence_order: 1,
-  name: "Entrance Experience",
-  zones: [foyerWelcome, corridorReveal],
+  name: "Context & Vision",
+  zones: [whyNagpurMarina, masterplanReveal],
 };
 
-export const galleryExperience: Area = {
+const lifeStyleAndAmenities: Area = {
   id: 2,
   sequence_order: 2,
-  name: "Gallery Experience",
-  zones: [galleryShowcase, loungeFinale],
+  name: "Lifestyle & Amenities",
+  zones: [
+    lifestyleAnchorsIntro,
+    waterfrontBeach,
+    waterfrontAmenities,
+    clubhouseInterior,
+    activeZone,
+    serenityZone,
+    neighbourhoodParksOrchards,
+  ],
 };
 
-export const areas: Area[] = [entranceExperience, galleryExperience];
+const theMarinaExperience: Area = {
+  id: 3,
+  sequence_order: 3,
+  name: "The Marina Experience",
+  zones: [
+    marinaReserve,
+    marinaEuphoria,
+    marinaGrove,
+    marinaBayview,
+    marinaGrand,
+    marinaRiviera,
+  ],
+};
+
+export const areas: Area[] = [
+  contextAndVision,
+  lifeStyleAndAmenities,
+  theMarinaExperience,
+];
