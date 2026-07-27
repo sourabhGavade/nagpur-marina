@@ -11,7 +11,7 @@ const sections = [
   {
     key: "areas",
     number: "01",
-    title: "Areas",
+    title: "Chapters",
     description: "Browse and activate experience areas",
   },
   {
@@ -24,7 +24,7 @@ const sections = [
     key: "lighting",
     number: "03",
     title: "Lighting",
-    description: "Toggle Main Model and Clubhouse lighting",
+    description: "Toogle the lighting directly.",
   },
 ] as const;
 
