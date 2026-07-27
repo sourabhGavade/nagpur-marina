@@ -44,19 +44,20 @@ export default function AreasPage() {
 
   const activeArea =
     runtimeStatus.playback_state !== "idle"
-      ? layout.areas.find(
-          (area) => area.id === runtimeStatus.active_area_id,
-        )
+      ? layout.areas.find((area) => area.id === runtimeStatus.active_area_id)
       : undefined;
   const selectedArea =
     activeArea ??
     layout.areas.find((area) => area.id === selectedAreaId) ??
     layout.areas[0];
+  const stageZone =
+    selectedArea?.zones.find(
+      (zone) => zone.id === runtimeStatus.active_zone_id,
+    ) ?? selectedArea?.zones[0];
 
   async function controlArea(areaId: number) {
     const isCurrentArea =
-      runtimeStatus.mode === "area" &&
-      runtimeStatus.active_area_id === areaId;
+      runtimeStatus.mode === "area" && runtimeStatus.active_area_id === areaId;
 
     setSelectedAreaId(areaId);
     setActionState("starting");
@@ -165,8 +166,7 @@ export default function AreasPage() {
               runtimeStatus.mode === "area" &&
               runtimeStatus.active_area_id === area.id;
             const isPlaying =
-              isCurrentArea &&
-              runtimeStatus.playback_state === "playing";
+              isCurrentArea && runtimeStatus.playback_state === "playing";
 
             return (
               <section
@@ -190,8 +190,7 @@ export default function AreasPage() {
                     }`}
                     onClick={() => controlArea(area.id)}
                     disabled={
-                      actionState === "starting" ||
-                      actionState === "stopping"
+                      actionState === "starting" || actionState === "stopping"
                     }
                     aria-label={`${isPlaying ? "Pause" : "Play"} ${area.name}`}
                   >
@@ -247,30 +246,21 @@ export default function AreasPage() {
       <section className="area-stage" aria-live="polite">
         {selectedArea ? (
           <>
-            <div className="area-image-fallback">
-              <span>{selectedArea.name}</span>
-            </div>
-            <Image
-              key={selectedArea.id}
-              src={selectedArea.tabletImageUrl}
-              alt={selectedArea.name}
-              fill
-              priority
-              sizes="(max-width: 768px) 100vw, 84vw"
-              className="area-image"
-              onError={(event) => {
-                event.currentTarget.style.display = "none";
-              }}
-            />
-            <div className="area-stage-shade" />
-            <div className="area-stage-copy">
-              <span>Selected area</span>
-              <h1>{selectedArea.name}</h1>
-              <p>
-                {selectedArea.zones.length}{" "}
-                {selectedArea.zones.length === 1 ? "zone" : "zones"}
-              </p>
-            </div>
+            <div className="area-image-fallback" aria-hidden="true" />
+            {stageZone ? (
+              <Image
+                key={stageZone.id}
+                src={stageZone.tabletImageUrl}
+                alt={stageZone.name}
+                fill
+                priority
+                sizes="(max-width: 768px) 100vw, 84vw"
+                className="area-image"
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
+            ) : null}
           </>
         ) : (
           <div className="empty-areas">No areas are available.</div>

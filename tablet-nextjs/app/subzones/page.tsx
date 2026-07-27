@@ -1,7 +1,6 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -244,18 +243,6 @@ export default function SubZonesPage() {
             <div className="area-image-fallback">
               <span>{formatElementName(selectedEntry.subZone.element_id)}</span>
             </div>
-            <Image
-              key={selectedEntry.subZone.element_id}
-              src={selectedEntry.subZone.tabletImageUrl}
-              alt={formatElementName(selectedEntry.subZone.element_id)}
-              fill
-              priority
-              sizes="(max-width: 768px) 58vw, 66vw"
-              className="area-image"
-              onError={(event) => {
-                event.currentTarget.style.display = "none";
-              }}
-            />
             <div className="area-stage-shade" />
             <div className="area-stage-copy">
               <span>

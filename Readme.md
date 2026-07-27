@@ -130,7 +130,7 @@ Edit:
 - `socket-server/data/zones.ts`
 - `socket-server/data/sub-zones.ts`
 
-Tablet images live under `tablet-nextjs/public/images`. TV videos live under
+Zone tablet images live under `tablet-nextjs/public/images/zones`. TV videos live under
 `tv-nextjs/public`. Their configured URLs must match these public paths.
 Restart the Socket.IO server after changing configuration data.
 

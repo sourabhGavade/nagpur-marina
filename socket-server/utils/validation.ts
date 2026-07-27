@@ -33,7 +33,6 @@ export const SubZoneSchema = z.object({
   element_id: nonEmptyStringSchema,
   intensity: intensitySchema,
   animation_duration_ms: durationSchema,
-  tabletImageUrl: nonEmptyStringSchema,
 });
 
 export const ZoneSchema = z
@@ -69,7 +68,6 @@ export const AreaSchema = z
     id: z.number().int().min(1),
     sequence_order: positiveOrderSchema,
     name: nonEmptyStringSchema,
-    tabletImageUrl: nonEmptyStringSchema,
     zones: z.array(ZoneSchema).min(1),
   })
   .superRefine((area, ctx) => {
@@ -156,13 +154,7 @@ export const DisplayHeartbeatSchema = z.object({
   display_id: nonEmptyStringSchema,
   uptime_ms: durationSchema,
   status: z.enum(["ready", "error"]),
-  playback_state: z.enum([
-    "idle",
-    "preparing",
-    "playing",
-    "paused",
-    "error",
-  ]),
+  playback_state: z.enum(["idle", "preparing", "playing", "paused", "error"]),
   active_zone_id: nonEmptyStringSchema.nullable(),
   sent_at_ms: durationSchema,
 });
@@ -240,11 +232,7 @@ export const DisplayPlaybackResultSchema = z.discriminatedUnion("status", [
   z.object({
     transaction_id: nonEmptyStringSchema,
     status: z.literal("error"),
-    error_code: z.enum([
-      "invalid_payload",
-      "missed_deadline",
-      "display_error",
-    ]),
+    error_code: z.enum(["invalid_payload", "missed_deadline", "display_error"]),
     message: nonEmptyStringSchema,
     failed_at_ms: durationSchema,
   }),

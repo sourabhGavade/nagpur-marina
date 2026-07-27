@@ -46,9 +46,7 @@ export default function ZonesPage() {
   );
   const activeEntry =
     runtimeStatus.playback_state !== "idle"
-      ? zoneEntries.find(
-          ({ zone }) => zone.id === runtimeStatus.active_zone_id,
-        )
+      ? zoneEntries.find(({ zone }) => zone.id === runtimeStatus.active_zone_id)
       : undefined;
   const selectedEntry =
     activeEntry ??
@@ -131,9 +129,7 @@ export default function ZonesPage() {
 
             return (
               <section
-                className={`area-list-item${
-                  isActiveArea ? " playing" : ""
-                }`}
+                className={`area-list-item${isActiveArea ? " playing" : ""}`}
                 key={area.id}
               >
                 <div className="zone-group-title">
@@ -202,9 +198,7 @@ export default function ZonesPage() {
       <section className="area-stage" aria-live="polite">
         {selectedEntry ? (
           <>
-            <div className="area-image-fallback">
-              <span>{selectedEntry.zone.name}</span>
-            </div>
+            <div className="area-image-fallback" aria-hidden="true" />
             <Image
               key={selectedEntry.zone.id}
               src={selectedEntry.zone.tabletImageUrl}
@@ -217,17 +211,6 @@ export default function ZonesPage() {
                 event.currentTarget.style.display = "none";
               }}
             />
-            <div className="area-stage-shade" />
-            <div className="area-stage-copy">
-              <span>{selectedEntry.area.name}</span>
-              <h1>{selectedEntry.zone.name}</h1>
-              <p>
-                {selectedEntry.zone.subZones.length}{" "}
-                {selectedEntry.zone.subZones.length === 1
-                  ? "sub-zone"
-                  : "sub-zones"}
-              </p>
-            </div>
           </>
         ) : (
           <div className="empty-areas">No zones are available.</div>

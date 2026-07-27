@@ -13,10 +13,8 @@ import { io, type Socket } from "socket.io-client";
 
 export interface SubZone {
   element_id: string;
-  /** Brightness from 0 (off) to 1 (full intensity). */
   intensity: number;
   animation_duration_ms: number;
-  tabletImageUrl: string;
 }
 
 export interface Zone {
@@ -34,7 +32,6 @@ export interface Area {
   id: number;
   sequence_order: number;
   name: string;
-  tabletImageUrl: string;
   zones: Zone[];
 }
 

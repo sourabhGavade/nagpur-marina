@@ -4,10 +4,8 @@
  */
 export interface SubZone {
   element_id: string;
-  /** Brightness from 0 (off) to 1 (full intensity). */
   intensity: number;
   animation_duration_ms: number;
-  tabletImageUrl: string;
 }
 
 export interface Zone {
@@ -25,7 +23,6 @@ export interface Area {
   id: number;
   sequence_order: number;
   name: string;
-  tabletImageUrl: string;
   zones: Zone[];
 }
 
@@ -47,8 +44,7 @@ export type LightAction = "activate" | "deactivate";
 /**
  * Transport representation of a SubZone sent to the Raspberry Pi.
  */
-export interface SubZoneHardwareState
-  extends Omit<SubZone, "tabletImageUrl"> {
+export interface SubZoneHardwareState extends SubZone {
   action: LightAction;
 }
 
@@ -383,13 +379,9 @@ export interface DisplayToServerEvents {
 }
 
 export interface ClientToServerEvents
-  extends TabletToServerEvents,
-    HardwareToServerEvents,
-    DisplayToServerEvents {}
+  extends TabletToServerEvents, HardwareToServerEvents, DisplayToServerEvents {}
 
 export interface ServerToClientEvents
-  extends ServerToTabletEvents,
-    ServerToHardwareEvents,
-    ServerToDisplayEvents {}
+  extends ServerToTabletEvents, ServerToHardwareEvents, ServerToDisplayEvents {}
 
 export interface InterServerEvents {}
