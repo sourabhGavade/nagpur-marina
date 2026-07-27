@@ -20,14 +20,8 @@ const sections = [
     description: "View the zones available in each area",
   },
   {
-    key: "subzones",
-    number: "03",
-    title: "Sub-zones",
-    description: "Control individual lighting elements",
-  },
-  {
     key: "lighting",
-    number: "04",
+    number: "03",
     title: "Lighting",
     description: "Toggle Main Model and Clubhouse lighting",
   },
@@ -58,20 +52,10 @@ export default function JourneyPage() {
     (total, area) => total + area.zones.length,
     0,
   );
-  const subZoneCount = layout.areas.reduce(
-    (total, area) =>
-      total +
-      area.zones.reduce(
-        (zoneTotal, zone) => zoneTotal + zone.subZones.length,
-        0,
-      ),
-    0,
-  );
   const lightingCount = layout.lightings.length;
   const counts = {
     areas: areaCount,
     zones: zoneCount,
-    subzones: subZoneCount,
     lighting: lightingCount,
   };
 
@@ -107,10 +91,8 @@ export default function JourneyPage() {
                   router.push("/areas");
                 } else if (section.key === "zones") {
                   router.push("/zones");
-                } else if (section.key === "lighting") {
-                  router.push("/lighting");
                 } else {
-                  router.push("/subzones");
+                  router.push("/lighting");
                 }
               }}
               initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}

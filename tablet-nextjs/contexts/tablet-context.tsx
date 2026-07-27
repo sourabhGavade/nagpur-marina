@@ -50,11 +50,7 @@ export interface AppConfig {
   lightings: Lighting[];
 }
 
-export type ConnectionState =
-  | "idle"
-  | "connecting"
-  | "connected"
-  | "error";
+export type ConnectionState = "idle" | "connecting" | "connected" | "error";
 
 export type CommandResult =
   | { status: "success"; transaction_id: string }
@@ -85,11 +81,6 @@ interface TabletContextValue {
   disconnect: () => void;
   activateArea: (areaId: Area["id"]) => Promise<CommandResult>;
   activateZone: (zoneId: Zone["id"]) => Promise<CommandResult>;
-  controlSubZone: (
-    zoneId: Zone["id"],
-    subZone: SubZone,
-    action?: "activate" | "deactivate",
-  ) => Promise<CommandResult>;
   controlLighting: (
     lightingId: Lighting["id"],
     action: "activate" | "deactivate",
@@ -143,10 +134,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const connect = useCallback(() => {
-    if (
-      socketRef.current?.connected ||
-      connectionState === "connecting"
-    ) {
+    if (socketRef.current?.connected || connectionState === "connecting") {
       return;
     }
 
@@ -205,7 +193,6 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
       event:
         | "area-activation"
         | "zone-activation"
-        | "subzone-control"
         | "lighting-control"
         | "sequence-pause"
         | "sequence-resume"
@@ -213,13 +200,6 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
       payload?:
         | { area_id: Area["id"] }
         | { zone_id: Zone["id"] }
-        | {
-            zone_id: Zone["id"];
-            element_id: SubZone["element_id"];
-            action: "activate" | "deactivate";
-            intensity: number;
-            animation_duration_ms: number;
-          }
         | {
             lighting_id: Lighting["id"];
             action: "activate" | "deactivate";
@@ -249,15 +229,6 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         }
 
         if (
-          event === "subzone-control" &&
-          payload &&
-          "element_id" in payload
-        ) {
-          socket.emit(event, payload, resolve);
-          return;
-        }
-
-        if (
           event === "lighting-control" &&
           payload &&
           "lighting_id" in payload
@@ -282,38 +253,17 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
   );
 
   const activateArea = useCallback(
-    (areaId: Area["id"]) =>
-      emitCommand("area-activation", { area_id: areaId }),
+    (areaId: Area["id"]) => emitCommand("area-activation", { area_id: areaId }),
     [emitCommand],
   );
 
   const activateZone = useCallback(
-    (zoneId: Zone["id"]) =>
-      emitCommand("zone-activation", { zone_id: zoneId }),
-    [emitCommand],
-  );
-
-  const controlSubZone = useCallback(
-    (
-      zoneId: Zone["id"],
-      subZone: SubZone,
-      action: "activate" | "deactivate" = "activate",
-    ) =>
-      emitCommand("subzone-control", {
-        zone_id: zoneId,
-        element_id: subZone.element_id,
-        action,
-        intensity: subZone.intensity,
-        animation_duration_ms: subZone.animation_duration_ms,
-      }),
+    (zoneId: Zone["id"]) => emitCommand("zone-activation", { zone_id: zoneId }),
     [emitCommand],
   );
 
   const controlLighting = useCallback(
-    (
-      lightingId: Lighting["id"],
-      action: "activate" | "deactivate",
-    ) =>
+    (lightingId: Lighting["id"], action: "activate" | "deactivate") =>
       emitCommand("lighting-control", {
         lighting_id: lightingId,
         action,
@@ -355,7 +305,6 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         disconnect,
         activateArea,
         activateZone,
-        controlSubZone,
         controlLighting,
         pauseSequence,
         resumeSequence,

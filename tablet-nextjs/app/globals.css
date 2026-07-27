@@ -745,38 +745,6 @@ button {
   font-size: 10px;
 }
 
-.subzone-group + .subzone-group {
-  margin-top: 14px;
-}
-
-.subzone-group-name {
-  display: block;
-  margin: 4px 8px 7px;
-  color: #858980;
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.subzone-group.playing > .subzone-group-name {
-  color: #66851f;
-}
-
-.subzone-group.playing > .subzone-group-name::before {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 7px;
-  border-radius: 50%;
-  background: #8eb72f;
-  content: "";
-}
-
-.subzone-menu-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
 .area-stage {
   position: relative;
   min-height: calc(100svh - 110px);
@@ -1043,15 +1011,6 @@ button {
   color: var(--accent);
 }
 
-.subzone-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.subzone-card {
-  min-height: 184px;
-  grid-template-columns: 1fr auto;
-}
-
 .color-swatch {
   width: 42px;
   height: 42px;
@@ -1060,11 +1019,6 @@ button {
   border: 5px solid white;
   border-radius: 50%;
   box-shadow: 0 0 0 1px rgba(23, 24, 21, 0.12);
-}
-
-.subzone-card.selected .selection-mark {
-  background: var(--accent);
-  color: var(--foreground);
 }
 
 @keyframes spin {
@@ -1098,7 +1052,6 @@ button {
   }
 
   .choice-grid,
-  .subzone-grid,
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
