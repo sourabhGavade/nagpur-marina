@@ -20,9 +20,12 @@ delegated to the separately implemented Raspberry Pi hardware agent.
 - A failed readiness check, heartbeat timeout, reported device error, or socket
   disconnect marks the affected device offline and starts fail-safe cleanup.
   Losing either Pi marks combined hardware status offline.
-- Lighting commands, all-off, and emergency shutdown are broadcast identically
-  to every connected hardware client; apply-state requires successful ACKs from
-  both.
+- Lighting commands for Area/Zone/Sub-zone/Stop, and emergency shutdown, are
+  broadcast identically to every connected hardware client; apply-state for
+  those scopes requires successful ACKs from both.
+- Dedicated `lighting-control` commands are routed to one Pi by lighting
+  `model` (`main-model` → `raspberry-pi-1`, `clubhouse` → `raspberry-pi-2`).
+  Only that Pi must ACK. Lighting does not drive the display.
 - Server startup and signal-driven shutdown are guarded against duplicate
   execution.
 
@@ -41,13 +44,15 @@ Relevant code:
 - Durations must be non-negative integers.
 - Lighting `intensity` must be a number from `0` through `1`.
 - A crossfade cannot be longer than its video.
-- Duplicate Area IDs/orders, Zone IDs/orders, and Sub-zone element IDs are
-  rejected.
-- Commands for unknown Areas or Zones are rejected before any device command is
-  sent.
+- Duplicate Area IDs/orders, Zone IDs/orders, Lighting IDs, and Sub-zone
+  element IDs are rejected.
+- Lighting `sequence_order` values must be unique within each `model`
+  (`main-model` or `clubhouse`).
+- Commands for unknown Areas, Zones, or Lightings are rejected before any
+  device command is sent.
 - A Sub-zone command is rejected when the Sub-zone does not belong to the
   supplied Zone.
-- Sub-zone actions are restricted to `activate` and `deactivate`.
+- Sub-zone and Lighting actions are restricted to `activate` and `deactivate`.
 - Malformed heartbeat and ACK payloads are ignored or rejected without updating
   valid runtime state.
 - `PORT` must be an integer between 1 and 65535.
@@ -71,8 +76,8 @@ Relevant code:
 - Timers, listeners, and active transaction tracking are removed when a
   transaction finishes.
 - Tablet callbacks are guarded against multiple replies.
-- A new Area, Zone, Sub-zone, Stop, or Emergency Stop command invalidates older
-  work through a generation token.
+- A new Area, Zone, Sub-zone, Lighting, Stop, or Emergency Stop command
+  invalidates older work through a generation token.
 - An older command cannot send stale hardware state after waiting for delayed
   media preparation.
 - Overriding an Area sequence with a Zone stops the old sequence loop.
@@ -122,8 +127,8 @@ Relevant code:
 - Stop sends hardware all-off and display stop concurrently.
 - Missing devices and rejected Stop ACKs are aggregated; Stop reports success
   only when both operations succeed.
-- A failed Area, Zone, or Sub-zone activation invalidates the runtime and sends
-  all-off/stop commands to whichever devices remain available.
+- A failed Area, Zone, Sub-zone, or Lighting activation invalidates the runtime
+  and sends all-off/stop commands to whichever devices remain available.
 - Fail-safe cleanup uses best-effort settlement, so failure to clean up one
   device does not prevent cleanup of the other.
 - A display failure sends all-off to connected hardware.
@@ -173,13 +178,13 @@ Relevant code:
 - A command attempted while disconnected fails immediately on the client.
 - Protected control pages redirect to the start screen if connection or layout
   data is missing.
-- Empty Area, Zone, and Sub-zone collections display an explicit empty state
+- Empty Area, Zone, and Lighting collections display an explicit empty state
   instead of selecting an undefined item.
 - Command buttons lock while their local command is pending.
 - Stop is disabled while the runtime is idle.
 - Failed commands show a toast and release the local pending lock.
-- Area, Zone, and Sub-zone pages distinguish starting, playing, and error
-  states.
+- Area, Zone, and Lighting pages distinguish starting, playing, and error
+  states (Lighting uses on/off toggle feedback).
 - Broken content images leave a visible text fallback.
 - Reduced-motion preferences disable or shorten nonessential animations.
 
@@ -190,7 +195,8 @@ Relevant code:
 - `tablet-nextjs/components/playback-controls.tsx`
 - `tablet-nextjs/app/areas/page.tsx`
 - `tablet-nextjs/app/zones/page.tsx`
-- `tablet-nextjs/app/subzones/page.tsx`
+- `tablet-nextjs/app/lighting/page.tsx`
+- `tablet-nextjs/app/journey/page.tsx`
 
 ## Important gaps and partial coverage
 
@@ -234,6 +240,7 @@ The Socket.IO server test suite covers:
 
 - configuration and command validation;
 - dual hardware capacity and duplicate hardware rejection;
+- model-routed Lighting control to a single Pi;
 - readiness timeout and heartbeat expiry;
 - disconnect fail-safe behavior;
 - sequence ordering and wraparound;

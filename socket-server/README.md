@@ -51,20 +51,35 @@ The HTTP health endpoint is available at `GET /health`.
 Hardware and display clients must acknowledge their readiness check before the
 server reports them online. Exactly two hardware clients with distinct
 `client_id` values are required; hardware status is online only when both are
-ready. Lighting commands are broadcast to both Pis. The server sends
-`server-heartbeat` every five seconds and marks a client offline after 30
-seconds without its corresponding heartbeat. A failed readiness check,
-heartbeat timeout, or disconnect invalidates active runtime work and triggers
-the available safe-off and display-stop commands.
+ready.
+
+Routing rules:
+
+- **Area / Zone / Sub-zone / Stop / Emergency** — `hardware-apply-state` (and
+  emergency shutdown) are broadcast to both Pis. Both must ACK apply-state.
+- **Lighting control** — routed to one Pi by lighting `model`:
+  - `main-model` → `raspberry-pi-1`
+  - `clubhouse` → `raspberry-pi-2`
+
+The server sends `server-heartbeat` every five seconds and marks a client
+offline after 30 seconds without its corresponding heartbeat. A failed
+readiness check, heartbeat timeout, or disconnect invalidates active runtime
+work and triggers the available safe-off and display-stop commands.
 
 Implemented Tablet controls:
 
 - `area-activation`
 - `zone-activation`
 - `subzone-control`
+- `lighting-control`
+- `sequence-pause`
+- `sequence-resume`
 - `sequence-stop`
 - `global-emergency-stop`
 
 Area activation starts from the selected Area, follows ordered Zones through
 subsequent Areas, wraps to the first Area, and continues until another control,
 Stop, fail-safe, or emergency invalidates its runtime generation.
+
+Lighting groups are configured in `data/lighting.ts` and included in the
+`system-layout` payload sent to tablets.

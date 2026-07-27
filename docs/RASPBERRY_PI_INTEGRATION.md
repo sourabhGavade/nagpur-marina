@@ -1,6 +1,6 @@
 # Raspberry Pi Hardware Integration Contract
 
-**Protocol version:** 1.3  
+**Protocol version:** 1.4  
 **Status:** Implemented Central Server contract for the Raspberry Pi team
 
 This document defines every Socket.IO message exchanged between the Central Laptop Server and the Raspberry Pi hardware agents.
@@ -42,11 +42,19 @@ Both Pis:
 6. Never restore a previous output state or queued transaction automatically after startup or reconnection.
 
 Hardware is reported online to the Tablet only when **both** Pis are connected,
-ready, and not in error. Every lighting command is broadcast identically to both
-Pis; both must acknowledge success.
+ready, and not in error.
+
+Apply-state routing:
+
+- **Area, Zone, Sub-zone, and normal Stop** — the same `hardware-apply-state`
+  payload is broadcast to both Pis; both must acknowledge success.
+- **Dedicated Lighting control** — routed to one Pi by lighting `model`:
+  `main-model` → `raspberry-pi-1`, `clubhouse` → `raspberry-pi-2`. Only that Pi
+  must ACK. Lighting does not drive the TV display.
+- **Emergency shutdown** — broadcast to both Pis.
 
 Configure the address through the Pi agent's `SOCKET_SERVER_URL` environment
-variable. There is currently no authentication token in protocol version 1.3.
+variable. There is currently no authentication token in protocol version 1.4.
 The system must run only on the trusted installation LAN.
 
 ## 2. Event Summary
@@ -93,11 +101,15 @@ Events that require a callback use the Socket.IO acknowledgement callback attach
 
 1. The Server sends the `hardware-readiness-check` event and a JSON payload to each connected Pi.
 2. Each Pi checks its registry, drivers, and watchdog, then returns one callback.
-3. The Server sends the same `hardware-apply-state` payload to **both** Pis with the complete desired lighting state and a future execution time.
-4. Each Pi validates the full payload without changing any output.
-5. Each Pi schedules the valid state for `execute_at_ms`.
-6. At that time, each Pi applies all output changes together.
-7. Each Pi returns one success callback. If validation or execution fails on either Pi, that Pi returns one error callback instead and the overall command fails.
+3. For Area/Zone/Sub-zone/Stop, the Server sends the same `hardware-apply-state`
+   payload to **both** Pis. For dedicated Lighting control, it sends the payload
+   only to the Pi mapped to that lighting's `model`.
+4. Each addressed Pi validates the full payload without changing any output.
+5. Each addressed Pi schedules the valid state for `execute_at_ms`.
+6. At that time, each addressed Pi applies all output changes together.
+7. Each addressed Pi returns one success callback. If validation or execution
+   fails on a required Pi, that Pi returns one error callback instead and the
+   overall command fails.
 
 ### Socket.IO ACK concept
 
@@ -157,7 +169,13 @@ The readiness check must not switch on or otherwise energize any output.
 
 ## 5. Apply Complete Lighting State
 
-The shared data model is `Area → Zone → Sub-Zone`, where each sub-zone represents exactly one controllable light/physical element. There is no separate Light entity. The protocol keeps the field name `lights` because it carries hardware lighting states: a Zone command includes one item for each of its sub-zones, while a single sub-zone command includes exactly one item.
+The shared data model is `Area → Zone → Sub-Zone`, plus a separate **Lighting**
+collection for model-scoped groups. Each sub-zone represents exactly one
+controllable light/physical element. There is no separate Light entity. The
+protocol keeps the field name `lights` because it carries hardware lighting
+states: a Zone command includes one item for each of its sub-zones, a single
+sub-zone command includes exactly one item, and a Lighting command includes one
+item for each sub-zone in that lighting group.
 
 ### Server sends
 
@@ -168,6 +186,7 @@ The shared data model is `Area → Zone → Sub-Zone`, where each sub-zone repre
   "transaction_id": "cmd-174001",
   "area_id": 1,
   "zone_id": "foyer-welcome",
+  "lighting_id": null,
   "scope": "zone",
   "mode": "replace",
   "execute_at_ms": 1784655000123,
@@ -186,19 +205,20 @@ The shared data model is `Area → Zone → Sub-Zone`, where each sub-zone repre
 
 This example means:
 
-> For command `cmd-174001`, replace the current lighting state for Zone `foyer-welcome` in Area `1`. At Unix time `1784655000123`, switch on the hardware element named `foyer_accent`, transition it to intensity `0.8` (80% of full) over 500 milliseconds, and switch off every other registered output. The Server sends this identical payload to both connected Raspberry Pis.
+> For command `cmd-174001`, replace the current lighting state for Zone `foyer-welcome` in Area `1`. At Unix time `1784655000123`, switch on the hardware element named `foyer_accent`, transition it to intensity `0.8` (80% of full) over 500 milliseconds, and switch off every other registered output. For Area/Zone/Sub-zone scopes, the Server sends this identical payload to both connected Raspberry Pis.
 
 ### Field requirements
 
 | Field | Type | Meaning and rules |
 |---|---|---|
 | `transaction_id` | string | Unique ID generated by the Server for this command. The Pi copies it into its ACK and uses it to detect retries. |
-| `area_id` | integer or null | Identifies the larger physical Area containing the Zone. It is `null` for a system-wide normal stop. |
-| `zone_id` | string or null | Stable software ID of the Zone being displayed. It is `null` for a system-wide normal stop. |
-| `scope` | string | Says what initiated the state: `area`, `zone`, `subzone`, or `system`. `system` is used for a normal all-off stop. |
+| `area_id` | integer or null | Identifies the larger physical Area containing the Zone. It is `null` for Lighting control and for a system-wide normal stop. |
+| `zone_id` | string or null | Stable software ID of the Zone being displayed. It is `null` for Lighting control and for a system-wide normal stop. |
+| `lighting_id` | string or null | Stable ID of a Lighting group when `scope` is `lighting`; otherwise `null`. |
+| `scope` | string | Says what initiated the state: `area`, `zone`, `subzone`, `lighting`, or `system`. `system` is used for a normal all-off stop. |
 | `mode` | string | Must be `replace`. The Pi must replace its old state instead of merging the new lights into it. |
 | `execute_at_ms` | integer | Exact future Unix time when all output transitions must begin. `_ms` means milliseconds. |
-| `lights` | array | Transport list of desired sub-zone hardware states. A Zone can supply multiple items, a single sub-zone command supplies one item, and `[]` means all outputs off. |
+| `lights` | array | Transport list of desired sub-zone hardware states. A Zone can supply multiple items, a single sub-zone command supplies one item, a Lighting group supplies its sub-zones, and `[]` means all outputs off. |
 | `element_id` | string | Identifies the sub-zone's controllable physical element. The Pi translates it through its local registry to a GPIO pin, relay, PWM channel, or driver address. |
 | `action` | string | `activate` switches the element on as requested; `deactivate` sends it to its safe off state. |
 | `intensity` | number | Requested brightness from `0` (off) to `1` (full intensity). Example: `0.8` means 80% of full. |
@@ -275,6 +295,7 @@ The array contains one item for every sub-zone/light that belongs to the selecte
   "transaction_id": "cmd-zone-001",
   "area_id": 1,
   "zone_id": "foyer-welcome",
+  "lighting_id": null,
   "scope": "zone",
   "mode": "replace",
   "execute_at_ms": 1784655000123,
@@ -298,6 +319,7 @@ Because one sub-zone represents one controllable light, the array contains exact
   "transaction_id": "cmd-subzone-001",
   "area_id": 1,
   "zone_id": "corridor-reveal",
+  "lighting_id": null,
   "scope": "subzone",
   "mode": "replace",
   "execute_at_ms": 1784655020000,
@@ -312,15 +334,49 @@ Because one sub-zone represents one controllable light, the array contains exact
 }
 ```
 
+### Dedicated Lighting control (model-routed)
+
+Tablet `lighting-control` activates or deactivates every sub-zone in a Lighting
+group. The Server sends this payload only to the Pi mapped to the lighting
+`model` (`main-model` → `raspberry-pi-1`, `clubhouse` → `raspberry-pi-2`). It
+does not prepare or play TV video.
+
+```json
+{
+  "transaction_id": "cmd-lighting-001",
+  "area_id": null,
+  "zone_id": null,
+  "lighting_id": "lighting-1",
+  "scope": "lighting",
+  "mode": "replace",
+  "execute_at_ms": 1784655025000,
+  "lights": [
+    {
+      "element_id": "corridor_wall_left",
+      "action": "activate",
+      "intensity": 1,
+      "animation_duration_ms": 750
+    },
+    {
+      "element_id": "corridor_wall_right",
+      "action": "activate",
+      "intensity": 0.9,
+      "animation_duration_ms": 750
+    }
+  ]
+}
+```
+
 ### Normal sequence stop / switch all outputs off
 
-The normal Tablet Stop control is not a Pi-specific event. The Server implements it by sending the same atomic replacement event with `scope: "system"` and an empty `lights` array:
+The normal Tablet Stop control is not a Pi-specific event. The Server implements it by sending the same atomic replacement event with `scope: "system"` and an empty `lights` array to **both** Pis:
 
 ```json
 {
   "transaction_id": "cmd-off-001",
   "area_id": null,
   "zone_id": null,
+  "lighting_id": null,
   "scope": "system",
   "mode": "replace",
   "execute_at_ms": 1784655030000,
@@ -501,11 +557,12 @@ The server does not wait for or depend on this event.
 
 The Central Laptop Server, Tablet client, TV display client, and a development
 hardware simulator are implemented in this repository. The production Pi agents
-must follow this version 1.3 contract. Run `bun run mock:hardware` from
+must follow this version 1.4 contract. Run `bun run mock:hardware` from
 `socket-server` to test the complete application without physical hardware.
 
 The Server expects exactly two hardware clients. Do not run more than two
 hardware agents (simulators and/or production Pis) against the same server.
 Each agent must use a distinct `client_id` such as `raspberry-pi-1` and
 `raspberry-pi-2`. The Tablet shows a single combined Raspberry Pi online status
-that requires both agents to be ready.
+that requires both agents to be ready. Dedicated Lighting control is model-routed;
+Area/Zone/Sub-zone and Stop remain broadcast to both.
