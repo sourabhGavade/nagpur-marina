@@ -30,6 +30,16 @@ export interface AppConfig {
   areas: Area[];
 }
 
+export type LightingModel = "main-model" | "clubhouse";
+
+export interface Lighting {
+  id: string;
+  name: string;
+  sequence_order: number;
+  model: LightingModel;
+  subZones: SubZone[];
+}
+
 export type ClientRole = "tablet" | "hardware" | "display";
 
 export interface SocketHandshakeAuth {
