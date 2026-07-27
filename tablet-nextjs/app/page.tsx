@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTabletContext } from "../contexts/tablet-context";
@@ -35,113 +36,129 @@ export default function Home() {
   }
 
   return (
-    <main className="tablet-shell">
-      <div className="ambient ambient-one" />
-      <div className="ambient ambient-two" />
+    <main className="relative isolate min-h-svh overflow-hidden bg-[#050b18] text-[#f5f7fb]">
+      <div className="absolute inset-0 z-0" aria-hidden="true">
+        <Image
+          src="/assets/main_bg.png"
+          alt=""
+          fill
+          priority
+          className="object-cover"
+          sizes="100vw"
+        />
+        <div className="absolute inset-0 bg-linear-to-b from-[#050b18]/20 to-[#050b18]/30" />
+      </div>
 
       <AnimatePresence mode="wait">
         {screen === "splash" ? (
           <motion.section
             key="splash"
-            className="screen"
+            className="absolute inset-0 z-2 grid place-items-center p-8 sm:p-12 md:p-20"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: reduceMotion ? 1 : 1.04 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: reduceMotion ? 0.15 : 0.6 }}
-            aria-label="Welcome"
+            aria-label="Nagpur Marina"
           >
             <motion.div
-              className="brand"
-              initial={{ opacity: 0, y: 24, scale: 0.92 }}
+              className="grid place-items-center"
+              initial={{ opacity: 0, y: 24, scale: 0.94 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{
                 duration: reduceMotion ? 0.15 : 1,
                 ease: [0.16, 1, 0.3, 1],
               }}
             >
-              <motion.span
-                className="brand-mark"
-                animate={
-                  reduceMotion
-                    ? undefined
-                    : { rotate: [0, 8, -5, 0], scale: [1, 1.08, 1] }
-                }
-                transition={{ delay: 0.65, duration: 0.8 }}
-              >
-                R P
-              </motion.span>
-              <div>
-                <span className="brand-name">Raspberry Pi Tablet</span>
-                <span className="brand-caption">
-                  Raspberry Pi tablet experience controller
-                </span>
-              </div>
+              <Image
+                src="/assets/main_logo.png"
+                alt="Nagpur Marina"
+                width={720}
+                height={240}
+                priority
+                className="h-auto w-[min(82vw,360px)] mix-blend-screen sm:w-[min(62vw,520px)]"
+              />
             </motion.div>
           </motion.section>
         ) : (
           <motion.section
             key="idle"
-            className="screen"
+            className="absolute inset-0 z-2 grid place-items-center p-6 sm:p-10 md:p-16"
             initial={{ opacity: 0, y: reduceMotion ? 0 : 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
               duration: reduceMotion ? 0.15 : 0.7,
               ease: [0.16, 1, 0.3, 1],
             }}
-            aria-labelledby="idle-title"
+            aria-labelledby="welcome-copy"
           >
-            <div className="idle-content">
-              <motion.div
-                className="eyebrow"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: reduceMotion ? 0 : 0.2 }}
-              >
-                Welcome
-              </motion.div>
-              <h1 id="idle-title">Ready to begin?</h1>
-              <p>Your immersive experience is waiting.</p>
+            <motion.div
+              className="flex h-full w-full max-w-9xl flex-col items-center justify-end gap-10 rounded-[28px] border-[1.5px] border-[rgba(212,175,100,0.55)] bg-black/20 px-5 py-9 text-center shadow-[0_0_0_1px_rgba(212,175,100,0.08),0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-[3px] sm:rounded-[44px] sm:px-16 sm:py-18"
+              initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{
+                duration: reduceMotion ? 0.15 : 0.65,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+            >
+              <Image
+                src="/assets/main_logo.png"
+                alt="Nagpur Marina"
+                width={560}
+                height={186}
+                priority
+                className="h-auto w-57.5 mix-blend-screen sm:w-125"
+              />
 
               <motion.button
                 type="button"
-                className="begin-button"
                 onClick={beginJourney}
                 disabled={
                   connectionState === "connecting" ||
                   connectionState === "connected"
                 }
-                whileHover={reduceMotion ? undefined : { scale: 1.025 }}
+                whileHover={reduceMotion ? undefined : { scale: 1.02 }}
                 whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                className="inline-flex h-20 min-w-[min(84vw,300px)] cursor-pointer items-center justify-center gap-3.5 rounded-full border-[1.5px] border-[rgba(212,175,100,0.85)] bg-[rgba(10,16,30,0.55)] px-9 text-[15px] font-semibold tracking-[0.04em] text-white transition-[background,border-color] duration-200 hover:border-[rgba(232,198,120,1)] hover:bg-[rgba(18,26,44,0.72)] focus-visible:outline-2 focus-visible:outline-offset-[5px] focus-visible:outline-[rgba(212,175,100,0.95)] disabled:cursor-default disabled:opacity-80 sm:min-w-[min(72vw,340px)]"
               >
-                <span>
-                  {connectionState === "connecting"
-                    ? "Connecting"
-                    : connectionState === "connected"
-                      ? "Loading journey"
-                      : connectionState === "error"
-                        ? "Try again"
-                        : "Begin journey"}
-                </span>
-                {connectionState === "connecting" ? (
-                  <span className="spinner" aria-hidden="true" />
-                ) : (
-                  <span className="arrow" aria-hidden="true">
-                    →
-                  </span>
+                {connectionState === "connecting"
+                  ? "Connecting…"
+                  : connectionState === "connected"
+                    ? "Loading journey…"
+                    : connectionState === "error"
+                      ? "Try again"
+                      : "Begin Journey"}
+                {connectionState === "connecting" && (
+                  <span
+                    className="inline-block size-3.5 shrink-0 animate-spin rounded-full border-2 border-white/30 border-t-[#f0d28a]"
+                    aria-hidden="true"
+                  />
                 )}
               </motion.button>
 
-              <div className="status" aria-live="polite">
+              <p
+                id="welcome-copy"
+                className=" text-[14px] leading-[1.55] tracking-[0.01em] text-[rgba(245,247,251,0.92)] sm:text-[20px]"
+              >
+                Explore a world of waterfront luxury, curated lifestyle,
+                <br />
+                and unmatched experiences.
+              </p>
+
+              <div
+                className="mt-4.5 min-h-6 text-[13px] text-[rgba(245,247,251,0.72)]"
+                aria-live="polite"
+              >
                 {connectionState === "connected" && (
-                  <span className="success">
-                    <i /> Connected to the experience
+                  <span className="inline-flex items-center gap-2">
+                    <i className="size-1.5 rounded-full bg-[#7ec65a] not-italic" />
+                    Connected to the experience
                   </span>
                 )}
                 {connectionState === "error" && (
-                  <span className="error">{errorMessage}</span>
+                  <span className="text-[#ff8f84]">{errorMessage}</span>
                 )}
               </div>
-            </div>
+            </motion.div>
           </motion.section>
         )}
       </AnimatePresence>

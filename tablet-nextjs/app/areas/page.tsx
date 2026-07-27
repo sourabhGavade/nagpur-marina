@@ -11,6 +11,29 @@ import { useTabletContext } from "../../contexts/tablet-context";
 
 type ActionState = "idle" | "starting" | "playing" | "stopping" | "error";
 
+function MarinaLoading({ label }: { label: string }) {
+  return (
+    <main className="relative isolate flex min-h-svh items-center justify-center gap-4 overflow-hidden bg-[#050b18] text-[rgba(245,247,251,0.72)]">
+      <div className="absolute inset-0 z-0" aria-hidden="true">
+        <Image
+          src="/assets/main_bg.png"
+          alt=""
+          fill
+          priority
+          className="object-cover"
+          sizes="100vw"
+        />
+        <div className="absolute inset-0 bg-linear-to-b from-[#050b18]/20 to-[#050b18]/30" />
+      </div>
+      <span
+        className="relative z-2 inline-block size-3.5 shrink-0 animate-spin rounded-full border-2 border-white/30 border-t-[#f0d28a]"
+        aria-hidden="true"
+      />
+      <p className="relative z-2 text-[14px]">{label}</p>
+    </main>
+  );
+}
+
 export default function AreasPage() {
   const {
     layout,
@@ -34,12 +57,7 @@ export default function AreasPage() {
   }, [connectionState, layout, router]);
 
   if (!layout) {
-    return (
-      <main className="journey-shell journey-loading">
-        <span className="spinner" aria-hidden="true" />
-        <p>Loading areas…</p>
-      </main>
-    );
+    return <MarinaLoading label="Loading areas…" />;
   }
 
   const activeArea =
@@ -127,154 +145,192 @@ export default function AreasPage() {
     }
   }
 
+  function zoneStatus(areaId: number, zoneId: string, zoneIndex: number) {
+    const isCurrentZone = runtimeStatus.active_zone_id === zoneId;
+    if (isCurrentZone && runtimeStatus.playback_state === "playing") {
+      return "Playing";
+    }
+    if (isCurrentZone && runtimeStatus.playback_state === "paused") {
+      return "Paused";
+    }
+
+    const isAreaPlaying =
+      runtimeStatus.mode === "area" &&
+      runtimeStatus.active_area_id === areaId &&
+      runtimeStatus.playback_state !== "idle";
+
+    if (isAreaPlaying) {
+      const activeIndex = layout?.areas
+        .find((area) => area.id === areaId)
+        ?.zones.findIndex((zone) => zone.id === runtimeStatus.active_zone_id);
+      if (activeIndex !== undefined && activeIndex >= 0 && zoneIndex === activeIndex + 1) {
+        return "Up Next";
+      }
+    }
+
+    return null;
+  }
+
   return (
-    <main className="areas-shell">
-      <header className="areas-header">
-        <div className="areas-menu-button">
-          <span>Areas</span>
-        </div>
+    <main className="marina-experience marina-shell">
+      <div className="marina-experience-bg" aria-hidden="true">
+        <Image
+          src="/assets/main_bg.png"
+          alt=""
+          fill
+          priority
+          className="object-cover"
+          sizes="100vw"
+        />
+        <div className="marina-experience-shade" />
+      </div>
 
-        <button
-          type="button"
-          className="areas-home"
-          onClick={() => router.push("/journey")}
-        >
-          Main menu
-        </button>
-
-        <DeviceStatuses />
-      </header>
-
-      <motion.aside
-        id="areas-menu"
-        className="areas-drawer"
-        initial={{ opacity: 0, x: reduceMotion ? 0 : -28 }}
-        animate={{ opacity: 1, x: 0 }}
+      <motion.div
+        className="marina-frame"
+        initial={{ opacity: 0, y: reduceMotion ? 0 : 16 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{
-          duration: reduceMotion ? 0.1 : 0.35,
+          duration: reduceMotion ? 0.15 : 0.55,
           ease: [0.16, 1, 0.3, 1],
         }}
       >
-        <div className="areas-drawer-heading">
-          <span>Experience areas</span>
-          <small>{layout.areas.length} available</small>
-        </div>
+        <header className="marina-frame-header">
+          <button
+            type="button"
+            className="marina-logo-button"
+            onClick={() => router.push("/journey")}
+            aria-label="Back to main menu"
+          >
+            <Image
+              src="/assets/main_logo.png"
+              alt="Nagpur Marina"
+              width={240}
+              height={80}
+              priority
+              className="marina-logo"
+            />
+          </button>
+          <DeviceStatuses />
+        </header>
 
-        <div className="areas-list">
-          {layout.areas.map((area, index) => {
-            const isCurrentArea =
-              runtimeStatus.mode === "area" &&
-              runtimeStatus.active_area_id === area.id;
-            const isPlaying =
-              isCurrentArea && runtimeStatus.playback_state === "playing";
+        <div className="marina-frame-body">
+          <aside className="marina-chapters">
+            <h2>Chapters</h2>
 
-            return (
-              <section
-                className={`area-list-item${
-                  selectedArea?.id === area.id ? " active" : ""
-                }${isCurrentArea ? " playing" : ""}`}
-                key={area.id}
-              >
-                <div className="area-list-title">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedAreaId(area.id)}
+            <div className="marina-chapters-list">
+              {layout.areas.map((area) => {
+                const isCurrentArea =
+                  runtimeStatus.mode === "area" &&
+                  runtimeStatus.active_area_id === area.id;
+                const isPlaying =
+                  isCurrentArea && runtimeStatus.playback_state === "playing";
+
+                return (
+                  <section
+                    key={area.id}
+                    className={`marina-chapter${
+                      selectedArea?.id === area.id ? " is-selected" : ""
+                    }${isCurrentArea ? " is-active" : ""}`}
                   >
-                    <small>{String(index + 1).padStart(2, "0")}</small>
-                    <strong>{area.name}</strong>
-                  </button>
-                  <button
-                    type="button"
-                    className={`area-play-button${
-                      isCurrentArea ? " current" : ""
-                    }`}
-                    onClick={() => controlArea(area.id)}
-                    disabled={
-                      actionState === "starting" || actionState === "stopping"
-                    }
-                    aria-label={`${isPlaying ? "Pause" : "Play"} ${area.name}`}
-                  >
-                    {isPlaying ? (
-                      <i className="pause-icon" aria-hidden="true" />
-                    ) : (
-                      "▶"
-                    )}
-                  </button>
-                </div>
-
-                <ul>
-                  {area.zones.map((zone) => {
-                    const isCurrentZone =
-                      runtimeStatus.active_zone_id === zone.id;
-                    const isPlaying =
-                      isCurrentZone &&
-                      runtimeStatus.playback_state === "playing";
-
-                    return (
-                      <li
-                        className={isCurrentZone ? "playing" : undefined}
-                        key={zone.id}
+                    <div className="marina-chapter-title">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAreaId(area.id)}
                       >
-                        <span>{zone.name}</span>
-                        <button
-                          type="button"
-                          className={`zone-inline-control${
-                            isCurrentZone ? " current" : ""
-                          }`}
-                          onClick={() => controlZone(zone.id)}
-                          disabled={actionState === "starting"}
-                          aria-label={`${isPlaying ? "Pause" : "Play"} ${
-                            zone.name
-                          }`}
-                        >
-                          {isPlaying ? (
-                            <i className="pause-icon" aria-hidden="true" />
-                          ) : (
-                            "▶"
-                          )}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            );
-          })}
+                        {area.name}
+                      </button>
+                      <button
+                        type="button"
+                        className={`marina-play-button${
+                          isCurrentArea ? " is-current" : ""
+                        }`}
+                        onClick={() => controlArea(area.id)}
+                        disabled={
+                          actionState === "starting" ||
+                          actionState === "stopping"
+                        }
+                        aria-label={`${isPlaying ? "Pause" : "Play"} ${area.name}`}
+                      >
+                        {isPlaying ? (
+                          <i className="pause-icon" aria-hidden="true" />
+                        ) : (
+                          <i className="play-icon" aria-hidden="true" />
+                        )}
+                      </button>
+                    </div>
+
+                    <ul>
+                      {area.zones.map((zone, zoneIndex) => {
+                        const status = zoneStatus(area.id, zone.id, zoneIndex);
+                        const isCurrentZone =
+                          runtimeStatus.active_zone_id === zone.id;
+
+                        return (
+                          <li
+                            key={zone.id}
+                            className={
+                              isCurrentZone
+                                ? "is-playing"
+                                : status === "Up Next"
+                                  ? "is-next"
+                                  : undefined
+                            }
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedAreaId(area.id);
+                                void controlZone(zone.id);
+                              }}
+                              disabled={actionState === "starting"}
+                            >
+                              <span>{zone.name}</span>
+                              {status ? <small>{status}</small> : null}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                );
+              })}
+            </div>
+          </aside>
+
+          <section className="marina-stage" aria-live="polite">
+            {selectedArea ? (
+              <>
+                <div className="marina-stage-fallback" aria-hidden="true" />
+                {stageZone ? (
+                  <Image
+                    key={stageZone.id}
+                    src={stageZone.tabletImageUrl}
+                    alt={stageZone.name}
+                    fill
+                    priority
+                    sizes="(max-width: 768px) 100vw, 66vw"
+                    className="marina-stage-image"
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : null}
+              </>
+            ) : (
+              <div className="marina-stage-empty">No areas are available.</div>
+            )}
+
+            <PlaybackControls
+              onPlay={() =>
+                selectedArea ? controlArea(selectedArea.id) : Promise.resolve()
+              }
+              busy={actionState === "starting"}
+              statusMessage={statusMessage}
+              showPrimary={false}
+            />
+          </section>
         </div>
-      </motion.aside>
-
-      <section className="area-stage" aria-live="polite">
-        {selectedArea ? (
-          <>
-            <div className="area-image-fallback" aria-hidden="true" />
-            {stageZone ? (
-              <Image
-                key={stageZone.id}
-                src={stageZone.tabletImageUrl}
-                alt={stageZone.name}
-                fill
-                priority
-                sizes="(max-width: 768px) 100vw, 84vw"
-                className="area-image"
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                }}
-              />
-            ) : null}
-          </>
-        ) : (
-          <div className="empty-areas">No areas are available.</div>
-        )}
-
-        <PlaybackControls
-          onPlay={() =>
-            selectedArea ? controlArea(selectedArea.id) : Promise.resolve()
-          }
-          busy={actionState === "starting"}
-          statusMessage={statusMessage}
-          showPrimary={false}
-        />
-      </section>
+      </motion.div>
     </main>
   );
 }

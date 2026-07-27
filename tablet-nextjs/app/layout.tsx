@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Raspberry Pi Tablet",
-  description: "Raspberry Pi tablet experience controller",
+  title: "Nagpur Marina",
+  description: "Nagpur Marina tablet experience",
 };
 
 export default function RootLayout({
