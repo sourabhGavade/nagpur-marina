@@ -107,11 +107,7 @@ export default function ZonesPage() {
     }
   }
 
-  function zoneStatus(
-    zoneId: string,
-    areaZones: { id: string }[],
-    zoneIndex: number,
-  ) {
+  function zoneStatus(zoneId: string) {
     const isCurrentZone = runtimeStatus.active_zone_id === zoneId;
     if (isCurrentZone && runtimeStatus.playback_state === "playing") {
       return "Playing";
@@ -119,16 +115,6 @@ export default function ZonesPage() {
     if (isCurrentZone && runtimeStatus.playback_state === "paused") {
       return "Paused";
     }
-
-    if (runtimeStatus.playback_state !== "idle") {
-      const activeIndex = areaZones.findIndex(
-        (zone) => zone.id === runtimeStatus.active_zone_id,
-      );
-      if (activeIndex >= 0 && zoneIndex === activeIndex + 1) {
-        return "Up Next";
-      }
-    }
-
     return null;
   }
 
@@ -194,17 +180,13 @@ export default function ZonesPage() {
                     </div>
 
                     <ul>
-                      {area.zones.map((zone, zoneIndex) => {
+                      {area.zones.map((zone) => {
                         const isCurrentZone =
                           runtimeStatus.active_zone_id === zone.id;
                         const isPlaying =
                           isCurrentZone &&
                           runtimeStatus.playback_state === "playing";
-                        const status = zoneStatus(
-                          zone.id,
-                          area.zones,
-                          zoneIndex,
-                        );
+                        const status = zoneStatus(zone.id);
                         const isSelected = selectedEntry?.zone.id === zone.id;
 
                         return (
@@ -214,7 +196,6 @@ export default function ZonesPage() {
                               [
                                 isSelected ? "is-selected" : "",
                                 isCurrentZone ? "is-playing" : "",
-                                status === "Up Next" ? "is-next" : "",
                               ]
                                 .filter(Boolean)
                                 .join(" ") || undefined
