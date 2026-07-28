@@ -15,13 +15,14 @@ import {
   waterfrontAmenities,
   waterfrontBeach,
   whyNagpurMarina,
+  ambientMarinaState,
 } from "./zones.ts";
 
 const contextAndVision: Area = {
   id: 1,
   sequence_order: 1,
   name: "Context & Vision",
-  zones: [whyNagpurMarina, masterplanReveal],
+  zones: [ambientMarinaState, whyNagpurMarina, masterplanReveal],
 };
 
 const lifeStyleAndAmenities: Area = {
