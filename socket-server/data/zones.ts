@@ -1,30 +1,37 @@
 import {
-  corridorWallLeft,
-  corridorWallRight,
-  dummySubZone1,
-  dummySubZone2,
-  dummySubZone3,
-  dummySubZone4,
-  dummySubZone5,
-  dummySubZone6,
-  dummySubZone7,
-  dummySubZone8,
-  dummySubZone9,
-  dummySubZone10,
-  dummySubZone11,
-  dummySubZone12,
-  dummySubZone13,
-  dummySubZone14,
-  dummySubZone15,
-  dummySubZone16,
-  dummySubZone17,
-  dummySubZone18,
-  dummySubZone19,
-  dummySubZone20,
-  foyerAccent,
-  foyerCeiling,
-  gallerySpotlight,
-  loungeAmbient,
+  subZoneMainModel1,
+  subZoneMainModel2,
+  subZoneMainModel3,
+  subZoneMainModel4,
+  subZoneMainModel5,
+  subZoneMainModel6,
+  subZoneMainModel7,
+  subZoneMainModel8,
+  subZoneMainModel9,
+  subZoneMainModel10,
+  subZoneMainModel11,
+  subZoneMainModel12,
+  subZoneMainModel13,
+  subZoneMainModel14,
+  subZoneMainModel15,
+  subZoneMainModel16,
+  subZoneMainModel17,
+  subZoneMainModel18,
+  subZoneMainModel19,
+  subZoneMainModel20,
+  subZoneMainModel21,
+  subZoneMainModel22,
+  subZoneMainModel23,
+  subZoneMainModel24,
+  subZoneClubhouseModel1,
+  subZoneClubhouseModel2,
+  subZoneClubhouseModel3,
+  subZoneClubhouseModel4,
+  subZoneClubhouseModel5,
+  subZoneClubhouseModel6,
+  subZoneClubhouseModel7,
+  subZoneClubhouseModel8,
+  subZoneClubhouseModel9,
 } from "./sub-zones.ts";
 import type { Zone } from "../utils/types.ts";
 
@@ -40,7 +47,19 @@ export const whyNagpurMarina: Zone = {
   video_duration_ms: 10_000,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: "/images/zones/foyer-welcome.jpg",
-  subZones: [foyerAccent, foyerCeiling],
+  subZones: [
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneMainModel24,
+    subZoneClubhouseModel1,
+    subZoneClubhouseModel2,
+    subZoneClubhouseModel3,
+    subZoneClubhouseModel4,
+    subZoneClubhouseModel5,
+    subZoneClubhouseModel7,
+    subZoneClubhouseModel8,
+    subZoneClubhouseModel9,
+  ],
 };
 
 export const masterplanReveal: Zone = {
@@ -51,7 +70,39 @@ export const masterplanReveal: Zone = {
   video_duration_ms: 14_000,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: "/images/zones/corridor-reveal.jpg",
-  subZones: [corridorWallLeft, corridorWallRight],
+  subZones: [
+    subZoneMainModel1,
+    subZoneMainModel2,
+    subZoneMainModel3,
+    subZoneMainModel4,
+    subZoneMainModel5,
+    subZoneMainModel6,
+    subZoneMainModel7,
+    subZoneMainModel8,
+    subZoneMainModel9,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneMainModel12,
+    subZoneMainModel13,
+    subZoneMainModel14,
+    subZoneMainModel15,
+    subZoneMainModel16,
+    subZoneMainModel17,
+    subZoneMainModel18,
+    subZoneMainModel19,
+    subZoneMainModel20,
+    subZoneMainModel21,
+    subZoneMainModel22,
+    subZoneMainModel23,
+    subZoneClubhouseModel1,
+    subZoneClubhouseModel2,
+    subZoneClubhouseModel3,
+    subZoneClubhouseModel4,
+    subZoneClubhouseModel5,
+    subZoneClubhouseModel6,
+    subZoneClubhouseModel8,
+    subZoneClubhouseModel9,
+  ],
 };
 
 export const lifestyleAnchorsIntro: Zone = {
@@ -62,7 +113,33 @@ export const lifestyleAnchorsIntro: Zone = {
   video_duration_ms: 19_000,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: "/images/zones/gallery-showcase.jpg",
-  subZones: [gallerySpotlight, dummySubZone16],
+  subZones: [
+    subZoneMainModel7,
+    subZoneMainModel8,
+    subZoneMainModel9,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneMainModel12,
+    subZoneMainModel13,
+    subZoneMainModel14,
+    subZoneMainModel15,
+    subZoneMainModel16,
+    subZoneMainModel17,
+    subZoneMainModel18,
+    subZoneMainModel19,
+    subZoneMainModel20,
+    subZoneMainModel21,
+    subZoneMainModel22,
+    subZoneMainModel23,
+    subZoneClubhouseModel1,
+    subZoneClubhouseModel2,
+    subZoneClubhouseModel3,
+    subZoneClubhouseModel4,
+    subZoneClubhouseModel5,
+    subZoneClubhouseModel6,
+    subZoneClubhouseModel8,
+    subZoneClubhouseModel9,
+  ],
 };
 
 export const waterfrontBeach: Zone = {
@@ -73,7 +150,15 @@ export const waterfrontBeach: Zone = {
   video_duration_ms: 20_000,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: "/images/zones/lounge-finale.jpg",
-  subZones: [loungeAmbient, dummySubZone14],
+  subZones: [
+    subZoneMainModel9,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneClubhouseModel1,
+    subZoneClubhouseModel6,
+    subZoneClubhouseModel7,
+    subZoneClubhouseModel8,
+  ],
 };
 
 export const waterfrontAmenities: Zone = {
@@ -84,7 +169,18 @@ export const waterfrontAmenities: Zone = {
   video_duration_ms: sharedVideoDurationMs,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
-  subZones: [dummySubZone4, dummySubZone17],
+  subZones: [
+    subZoneMainModel9,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneClubhouseModel1,
+    subZoneClubhouseModel2,
+    subZoneClubhouseModel4,
+    subZoneClubhouseModel5,
+    subZoneClubhouseModel6,
+    subZoneClubhouseModel8,
+    subZoneClubhouseModel9,
+  ],
 };
 
 export const clubhouseInterior: Zone = {
@@ -95,7 +191,13 @@ export const clubhouseInterior: Zone = {
   video_duration_ms: sharedVideoDurationMs,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
-  subZones: [dummySubZone11],
+  subZones: [
+    subZoneMainModel9,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneClubhouseModel3,
+    subZoneClubhouseModel7,
+  ],
 };
 
 export const activeZone: Zone = {
@@ -106,7 +208,12 @@ export const activeZone: Zone = {
   video_duration_ms: sharedVideoDurationMs,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
-  subZones: [dummySubZone2, dummySubZone19],
+  subZones: [
+    subZoneMainModel7,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneClubhouseModel7,
+  ],
 };
 
 export const serenityZone: Zone = {
@@ -117,7 +224,12 @@ export const serenityZone: Zone = {
   video_duration_ms: sharedVideoDurationMs,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
-  subZones: [dummySubZone8],
+  subZones: [
+    subZoneMainModel8,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneClubhouseModel7,
+  ],
 };
 
 export const neighbourhoodParksOrchards: Zone = {
@@ -128,7 +240,23 @@ export const neighbourhoodParksOrchards: Zone = {
   video_duration_ms: sharedVideoDurationMs,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
-  subZones: [dummySubZone13, dummySubZone6],
+  subZones: [
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneMainModel12,
+    subZoneMainModel13,
+    subZoneMainModel14,
+    subZoneMainModel15,
+    subZoneMainModel16,
+    subZoneMainModel17,
+    subZoneMainModel18,
+    subZoneMainModel19,
+    subZoneMainModel20,
+    subZoneMainModel21,
+    subZoneMainModel22,
+    subZoneMainModel23,
+    subZoneClubhouseModel7,
+  ],
 };
 
 export const marinaReserve: Zone = {
@@ -139,7 +267,14 @@ export const marinaReserve: Zone = {
   video_duration_ms: sharedVideoDurationMs,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
-  subZones: [dummySubZone1],
+  subZones: [
+    subZoneMainModel1,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneMainModel12,
+    subZoneMainModel23,
+    subZoneClubhouseModel7,
+  ],
 };
 
 export const marinaEuphoria: Zone = {
@@ -150,7 +285,13 @@ export const marinaEuphoria: Zone = {
   video_duration_ms: sharedVideoDurationMs,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
-  subZones: [dummySubZone15, dummySubZone9],
+  subZones: [
+    subZoneMainModel2,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneMainModel13,
+    subZoneClubhouseModel7,
+  ],
 };
 
 export const marinaGrove: Zone = {
@@ -161,7 +302,17 @@ export const marinaGrove: Zone = {
   video_duration_ms: sharedVideoDurationMs,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
-  subZones: [dummySubZone20],
+  subZones: [
+    subZoneMainModel3,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneMainModel14,
+    subZoneMainModel15,
+    subZoneMainModel16,
+    subZoneMainModel17,
+    subZoneMainModel18,
+    subZoneClubhouseModel7,
+  ],
 };
 
 export const marinaBayview: Zone = {
@@ -172,7 +323,14 @@ export const marinaBayview: Zone = {
   video_duration_ms: sharedVideoDurationMs,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
-  subZones: [dummySubZone3, dummySubZone12],
+  subZones: [
+    subZoneMainModel4,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneMainModel19,
+    subZoneMainModel20,
+    subZoneClubhouseModel7,
+  ],
 };
 
 export const marinaGrand: Zone = {
@@ -183,7 +341,13 @@ export const marinaGrand: Zone = {
   video_duration_ms: sharedVideoDurationMs,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
-  subZones: [dummySubZone7],
+  subZones: [
+    subZoneMainModel5,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneMainModel21,
+    subZoneClubhouseModel7,
+  ],
 };
 
 export const marinaRiviera: Zone = {
@@ -194,7 +358,13 @@ export const marinaRiviera: Zone = {
   video_duration_ms: sharedVideoDurationMs,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
-  subZones: [dummySubZone18, dummySubZone5, dummySubZone10],
+  subZones: [
+    subZoneMainModel6,
+    subZoneMainModel10,
+    subZoneMainModel11,
+    subZoneMainModel22,
+    subZoneClubhouseModel7,
+  ],
 };
 
 export const zones: Zone[] = [
