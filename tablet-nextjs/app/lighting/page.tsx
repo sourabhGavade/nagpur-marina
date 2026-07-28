@@ -14,8 +14,12 @@ import {
 
 const MODEL_LABELS: Record<LightingModel, string> = {
   "main-model": "Main Model",
-  clubhouse: "Clubhouse",
+  "clubhouse-model": "Clubhouse",
 };
+
+function lightingModel(lighting: Lighting): LightingModel {
+  return lighting.subZones[0]!.model;
+}
 
 function sortLightings(items: Lighting[]) {
   return [...items].sort((a, b) => a.sequence_order - b.sequence_order);
@@ -61,14 +65,18 @@ export default function LightingPage() {
   const mainModel = useMemo(
     () =>
       sortLightings(
-        layout?.lightings.filter((item) => item.model === "main-model") ?? [],
+        layout?.lightings.filter(
+          (item) => lightingModel(item) === "main-model",
+        ) ?? [],
       ),
     [layout],
   );
   const clubhouse = useMemo(
     () =>
       sortLightings(
-        layout?.lightings.filter((item) => item.model === "clubhouse") ?? [],
+        layout?.lightings.filter(
+          (item) => lightingModel(item) === "clubhouse-model",
+        ) ?? [],
       ),
     [layout],
   );
@@ -178,7 +186,7 @@ export default function LightingPage() {
 
         <div className="lighting-board">
           {renderPanel(MODEL_LABELS["main-model"], mainModel)}
-          {renderPanel(MODEL_LABELS.clubhouse, clubhouse)}
+          {renderPanel(MODEL_LABELS["clubhouse-model"], clubhouse)}
         </div>
       </motion.div>
     </main>

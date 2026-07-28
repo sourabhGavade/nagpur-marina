@@ -1,9 +1,5 @@
 import { ZodError } from "zod";
-import {
-  LIGHTING_MODEL_TO_HARDWARE_CLIENT,
-  type AppSocket,
-  type ClientRegistry,
-} from "../lib/client-registry.ts";
+import type { AppSocket, ClientRegistry } from "../lib/client-registry.ts";
 import { AreaSequenceController } from "./area-sequence-controller.ts";
 import type { RuntimeController } from "./runtime-controller.ts";
 import {
@@ -131,14 +127,9 @@ export class ControlController {
       this.assertControlsAvailable();
       const request = parseSubZoneControlRequest(payload, this.appConfig);
       const { area, zone } = this.findZone(request.zone_id);
+      const lights = [this.toHardwareState(request, zone)];
 
-      await this.activate(
-        operationId,
-        area,
-        zone,
-        [this.toHardwareState(request)],
-        "subzone",
-      );
+      await this.activate(operationId, area, zone, lights, "subzone");
       this.runtime.broadcastRuntimeStatus();
       reply({ status: "success", transaction_id: operationId });
     } catch (error) {
@@ -157,7 +148,6 @@ export class ControlController {
       this.assertControlsAvailable();
       const request = parseLightingControlRequest(payload, this.appConfig);
       const lighting = this.findLighting(request.lighting_id);
-      const hardwareClientId = LIGHTING_MODEL_TO_HARDWARE_CLIENT[lighting.model];
       const lights: SubZoneHardwareState[] = lighting.subZones.map(
         (subZone) => ({
           ...subZone,
@@ -177,15 +167,18 @@ export class ControlController {
 
       try {
         const executeAtMs = this.runtime.nextExecutionTime();
-        await this.runtime.applyHardwareStateToClient(hardwareClientId, {
-          area_id: null,
-          zone_id: null,
-          lighting_id: lighting.id,
-          scope: "lighting",
-          mode: "replace",
-          execute_at_ms: executeAtMs,
-          lights,
-        });
+        await this.runtime.applyHardwareState(
+          {
+            area_id: null,
+            zone_id: null,
+            lighting_id: lighting.id,
+            scope: "lighting",
+            mode: "replace",
+            execute_at_ms: executeAtMs,
+            lights,
+          },
+          { emptyPolicy: "omit" },
+        );
         this.assertCurrent(generation);
       } catch (error) {
         if (this.runtime.state.isCurrent(generation)) {
@@ -223,15 +216,18 @@ export class ControlController {
 
       const executeAtMs = this.runtime.nextExecutionTime();
       await Promise.all([
-        this.runtime.applyHardwareState({
-          area_id: area.id,
-          zone_id: zone.id,
-          lighting_id: null,
-          scope: mode,
-          mode: "replace",
-          execute_at_ms: executeAtMs,
-          lights,
-        }),
+        this.runtime.applyHardwareState(
+          {
+            area_id: area.id,
+            zone_id: zone.id,
+            lighting_id: null,
+            scope: mode,
+            mode: "replace",
+            execute_at_ms: executeAtMs,
+            lights,
+          },
+          { emptyPolicy: mode === "subzone" ? "omit" : "send-empty" },
+        ),
         this.runtime.playZoneVideo(zone, executeAtMs),
       ]);
       this.assertCurrent(generation);
@@ -340,9 +336,19 @@ export class ControlController {
 
   private toHardwareState(
     request: SubZoneControlRequest,
+    zone: Zone,
   ): SubZoneHardwareState {
+    const subZone = zone.subZones.find(
+      (item) =>
+        item.element_id === request.element_id && item.model === request.model,
+    );
+    if (!subZone) {
+      throw new Error("Sub-Zone does not belong to the selected Zone");
+    }
+
     return {
       element_id: request.element_id,
+      model: request.model,
       action: request.action,
       intensity: request.intensity,
       animation_duration_ms: request.animation_duration_ms,

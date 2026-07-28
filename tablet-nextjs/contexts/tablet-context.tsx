@@ -11,9 +11,12 @@ import {
 } from "react";
 import { io, type Socket } from "socket.io-client";
 
+export type LightingModel = "main-model" | "clubhouse-model";
+
 export interface SubZone {
   element_id: string;
   intensity: number;
+  model: LightingModel;
   animation_duration_ms: number;
 }
 
@@ -35,13 +38,10 @@ export interface Area {
   zones: Zone[];
 }
 
-export type LightingModel = "main-model" | "clubhouse";
-
 export interface Lighting {
   id: string;
   name: string;
   sequence_order: number;
-  model: LightingModel;
   subZones: SubZone[];
 }
 

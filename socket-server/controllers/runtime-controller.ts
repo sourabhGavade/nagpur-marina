@@ -4,6 +4,11 @@ import {
   type AppIo,
   type AppSocket,
 } from "../lib/client-registry.ts";
+import {
+  hardwareClientsForLights,
+  partitionLightsByHardwareClient,
+  type HardwareEmptyPolicy,
+} from "../lib/hardware-routing.ts";
 import { RuntimeState, type NodeRole } from "../lib/runtime-state.ts";
 import { createTransactionId, requestAck } from "../lib/transactions.ts";
 import type {
@@ -210,15 +215,39 @@ export class RuntimeController {
     }
   }
 
+  /**
+   * Split lights by SubZone.model and apply to each Pi.
+   * - send-empty (default): always both Pis; empty list clears that Pi.
+   * - omit: only Pis that have lights in this command.
+   */
   async applyHardwareState(
     payload: Omit<HardwareApplyStatePayload, "transaction_id">,
+    options: { emptyPolicy?: HardwareEmptyPolicy } = {},
   ): Promise<void> {
-    const sockets = this.registry.getHardwareClients();
+    const emptyPolicy = options.emptyPolicy ?? "send-empty";
+
+    if (!this.state.isOnline("hardware")) {
+      throw new Error("hardware_offline");
+    }
+
     if (
-      sockets.length !== EXPECTED_HARDWARE_CLIENTS ||
-      !this.state.isOnline("hardware")
+      emptyPolicy === "send-empty" &&
+      this.registry.getHardwareClients().length !== EXPECTED_HARDWARE_CLIENTS
     ) {
       throw new Error("hardware_offline");
+    }
+
+    const partitions = partitionLightsByHardwareClient(payload.lights);
+    const clientIds = hardwareClientsForLights(payload.lights, emptyPolicy);
+
+    if (clientIds.length === 0) {
+      throw new Error("hardware_offline");
+    }
+
+    for (const clientId of clientIds) {
+      if (!this.registry.getHardwareClient(clientId)) {
+        throw new Error("hardware_offline");
+      }
     }
 
     const transactionId = createTransactionId("apply-state");
@@ -226,11 +255,17 @@ export class RuntimeController {
       1_000,
       payload.execute_at_ms - Date.now() + 1_000,
     );
-    const fullPayload = { transaction_id: transactionId, ...payload };
 
     const results = await Promise.all(
-      sockets.map((socket) =>
-        requestAck({
+      clientIds.map((clientId) => {
+        const socket = this.registry.getHardwareClient(clientId)!;
+        const fullPayload = {
+          transaction_id: transactionId,
+          ...payload,
+          lights: partitions[clientId] ?? [],
+        };
+
+        return requestAck({
           socket,
           runtime: this.state,
           transactionId,
@@ -243,8 +278,8 @@ export class RuntimeController {
               ack as SocketAck<HardwareApplyResult>,
             );
           },
-        }),
-      ),
+        });
+      }),
     );
 
     for (const result of results) {

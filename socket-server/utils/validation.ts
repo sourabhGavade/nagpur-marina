@@ -33,6 +33,7 @@ function reportDuplicates<T>(
 export const SubZoneSchema = z.object({
   element_id: nonEmptyStringSchema,
   intensity: intensitySchema,
+  model: z.enum(["main-model", "clubhouse-model"]),
   animation_duration_ms: durationSchema,
 });
 
@@ -57,8 +58,8 @@ export const ZoneSchema = z
     }
 
     reportDuplicates(
-      zone.subZones.map(({ element_id }) => element_id),
-      "Sub-Zone element_id",
+      zone.subZones.map(({ model, element_id }) => `${model}:${element_id}`),
+      "Sub-Zone model+element_id",
       ctx,
       ["subZones"],
     );
@@ -91,13 +92,21 @@ export const LightingSchema = z
     id: nonEmptyStringSchema,
     name: nonEmptyStringSchema,
     sequence_order: positiveOrderSchema,
-    model: z.enum(["main-model", "clubhouse"]),
     subZones: z.array(SubZoneSchema).min(1),
   })
   .superRefine((lighting, ctx) => {
+    const models = new Set(lighting.subZones.map(({ model }) => model));
+    if (models.size > 1) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Lighting Sub-Zones must share a single model",
+        path: ["subZones"],
+      });
+    }
+
     reportDuplicates(
-      lighting.subZones.map(({ element_id }) => element_id),
-      "Sub-Zone element_id",
+      lighting.subZones.map(({ model, element_id }) => `${model}:${element_id}`),
+      "Sub-Zone model+element_id",
       ctx,
       ["subZones"],
     );
@@ -129,14 +138,6 @@ export const AppConfigSchema = z
       ctx,
       ["areas"],
     );
-    reportDuplicates(
-      zones.flatMap(({ subZones }) =>
-        subZones.map(({ element_id }) => element_id),
-      ),
-      "Sub-Zone element_id",
-      ctx,
-      ["areas"],
-    );
 
     reportDuplicates(
       config.lightings.map(({ id }) => id),
@@ -144,19 +145,11 @@ export const AppConfigSchema = z
       ctx,
       ["lightings"],
     );
-    reportDuplicates(
-      config.lightings.flatMap(({ subZones }) =>
-        subZones.map(({ element_id }) => element_id),
-      ),
-      "Lighting Sub-Zone element_id",
-      ctx,
-      ["lightings"],
-    );
 
-    for (const model of ["main-model", "clubhouse"] as const) {
+    for (const model of ["main-model", "clubhouse-model"] as const) {
       reportDuplicates(
         config.lightings
-          .filter((lighting) => lighting.model === model)
+          .filter((lighting) => lighting.subZones[0]?.model === model)
           .map(({ sequence_order }) => sequence_order),
         `${model} Lighting sequence_order`,
         ctx,
@@ -181,6 +174,7 @@ export const ZoneActivationRequestSchema = z.object({
 export const SubZoneControlRequestSchema = z.object({
   zone_id: nonEmptyStringSchema,
   element_id: nonEmptyStringSchema,
+  model: z.enum(["main-model", "clubhouse-model"]),
   action: z.enum(["activate", "deactivate"]),
   intensity: intensitySchema,
   animation_duration_ms: durationSchema,
@@ -365,7 +359,7 @@ export function parseSubZoneControlRequest(
   config: AppConfig,
 ): SubZoneControlRequest {
   return SubZoneControlRequestSchema.superRefine(
-    ({ zone_id, element_id }, ctx) => {
+    ({ zone_id, element_id, model }, ctx) => {
       const zone = config.areas
         .flatMap(({ zones }) => zones)
         .find(({ id }) => id === zone_id);
@@ -377,7 +371,10 @@ export function parseSubZoneControlRequest(
           path: ["zone_id"],
         });
       } else if (
-        !zone.subZones.some((subZone) => subZone.element_id === element_id)
+        !zone.subZones.some(
+          (subZone) =>
+            subZone.element_id === element_id && subZone.model === model,
+        )
       ) {
         ctx.addIssue({
           code: "custom",

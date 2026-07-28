@@ -29,7 +29,7 @@ export const HARDWARE_CLIENT_CLUBHOUSE = "raspberry-pi-2";
 
 export const LIGHTING_MODEL_TO_HARDWARE_CLIENT = {
   "main-model": HARDWARE_CLIENT_MAIN_MODEL,
-  clubhouse: HARDWARE_CLIENT_CLUBHOUSE,
+  "clubhouse-model": HARDWARE_CLIENT_CLUBHOUSE,
 } as const;
 
 export class DuplicateClientError extends Error {

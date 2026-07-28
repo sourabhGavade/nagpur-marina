@@ -28,10 +28,11 @@ describe("configuration validation", () => {
     expect(() => AppConfigSchema.parse(invalidConfig)).toThrow();
   });
 
-  test("rejects duplicate element IDs", () => {
+  test("rejects duplicate model+element IDs within a Zone", () => {
     const invalidConfig = structuredClone(config);
     const [first, second] = invalidConfig.areas[0]!.zones[0]!.subZones;
     second!.element_id = first!.element_id;
+    second!.model = first!.model;
 
     expect(() => AppConfigSchema.parse(invalidConfig)).toThrow();
   });
@@ -39,6 +40,21 @@ describe("configuration validation", () => {
   test("rejects duplicate Lighting ids", () => {
     const invalidConfig = structuredClone(config);
     invalidConfig.lightings[1]!.id = invalidConfig.lightings[0]!.id;
+
+    expect(() => AppConfigSchema.parse(invalidConfig)).toThrow();
+  });
+
+  test("rejects Lighting Sub-Zones with mixed models", () => {
+    const invalidConfig = structuredClone(config);
+    const lighting = invalidConfig.lightings.find(
+      (item) => item.subZones[0]?.model === "main-model",
+    )!;
+    lighting.subZones.push({
+      element_id: "sub_zone_mixed",
+      model: "clubhouse-model",
+      intensity: 1,
+      animation_duration_ms: 500,
+    });
 
     expect(() => AppConfigSchema.parse(invalidConfig)).toThrow();
   });
@@ -50,17 +66,20 @@ describe("Tablet request validation", () => {
       area_id: 1,
     });
     expect(
-      parseZoneActivationRequest({ zone_id: "foyer-welcome" }, config),
-    ).toEqual({ zone_id: "foyer-welcome" });
+      parseZoneActivationRequest(
+        { zone_id: "ambient-marina-state" },
+        config,
+      ),
+    ).toEqual({ zone_id: "ambient-marina-state" });
   });
 
   test("accepts known Lighting ids", () => {
     expect(
       parseLightingControlRequest(
-        { lighting_id: "lighting-1", action: "activate" },
+        { lighting_id: "marina-reserve", action: "activate" },
         config,
       ),
-    ).toEqual({ lighting_id: "lighting-1", action: "activate" });
+    ).toEqual({ lighting_id: "marina-reserve", action: "activate" });
   });
 
   test("rejects unknown entities", () => {
@@ -82,8 +101,9 @@ describe("Tablet request validation", () => {
     expect(() =>
       parseSubZoneControlRequest(
         {
-          zone_id: "foyer-welcome",
+          zone_id: "ambient-marina-state",
           element_id: "corridor_wall_left",
+          model: "main-model",
           action: "activate",
           intensity: 0.5,
           animation_duration_ms: 500,
@@ -91,5 +111,28 @@ describe("Tablet request validation", () => {
         config,
       ),
     ).toThrow();
+  });
+
+  test("requires model to disambiguate Sub-Zones", () => {
+    expect(
+      parseSubZoneControlRequest(
+        {
+          zone_id: "ambient-marina-state",
+          element_id: "sub_zone_10",
+          model: "main-model",
+          action: "activate",
+          intensity: 0.5,
+          animation_duration_ms: 500,
+        },
+        config,
+      ),
+    ).toEqual({
+      zone_id: "ambient-marina-state",
+      element_id: "sub_zone_10",
+      model: "main-model",
+      action: "activate",
+      intensity: 0.5,
+      animation_duration_ms: 500,
+    });
   });
 });

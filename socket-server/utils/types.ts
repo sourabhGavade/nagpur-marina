@@ -2,9 +2,12 @@
  * One controllable light/physical element inside a Zone.
  * SubZone is the lighting entity; there is no separate Light entity.
  */
+export type LightingModel = "main-model" | "clubhouse-model";
+
 export interface SubZone {
   element_id: string;
   intensity: number;
+  model: LightingModel;
   animation_duration_ms: number;
 }
 
@@ -26,13 +29,10 @@ export interface Area {
   zones: Zone[];
 }
 
-export type LightingModel = "main-model" | "clubhouse";
-
 export interface Lighting {
   id: string;
   name: string;
   sequence_order: number;
-  model: LightingModel;
   subZones: SubZone[];
 }
 
@@ -92,6 +92,7 @@ export interface ZoneActivationRequest {
 export interface SubZoneControlRequest {
   zone_id: Zone["id"];
   element_id: SubZone["element_id"];
+  model: LightingModel;
   action: LightAction;
   intensity: number;
   animation_duration_ms: number;

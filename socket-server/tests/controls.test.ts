@@ -171,24 +171,54 @@ describe("Tablet controls", () => {
       });
     });
     const result = new Promise<any>((resolve) => {
-      tablet.emit("zone-activation", { zone_id: "foyer-welcome" }, resolve);
+      tablet.emit(
+        "zone-activation",
+        { zone_id: "ambient-marina-state" },
+        resolve,
+      );
     });
 
     const [command, [hardwarePayload, hardware2Payload], videoPayload] =
       await Promise.all([result, hardwareState, videoState]);
 
     expect(command.status).toBe("success");
-    expect(hardwarePayload.lights).toHaveLength(2);
-    expect(hardware2Payload).toEqual(hardwarePayload);
+    expect(
+      hardwarePayload.lights.every((light) => light.model === "main-model"),
+    ).toBe(true);
+    expect(
+      hardware2Payload.lights.every(
+        (light) => light.model === "clubhouse-model",
+      ),
+    ).toBe(true);
+    expect(hardwarePayload.lights).toHaveLength(3);
+    expect(hardware2Payload.lights).toHaveLength(8);
     expect(hardwarePayload.execute_at_ms).toBe(videoPayload.execute_at_ms);
     expect(server.runtime.state.mode).toBe("zone");
-    expect(server.runtime.state.activeZoneId).toBe("foyer-welcome");
+    expect(server.runtime.state.activeZoneId).toBe("ambient-marina-state");
   });
 
   test("controls one Sub-Zone and plays its parent video", async () => {
     acknowledgeVideoPreparation();
 
-    const hardwareState = waitForSharedHardwareApply();
+    const hardwareState = new Promise<HardwareApplyStatePayload>((resolve) => {
+      hardware.once("hardware-apply-state", (payload, ack) => {
+        ack({
+          transaction_id: payload.transaction_id,
+          status: "success",
+          applied_at_ms: Date.now(),
+        });
+        resolve(payload);
+      });
+    });
+    let pi2Seen = false;
+    hardware2.once("hardware-apply-state", (_payload, ack) => {
+      pi2Seen = true;
+      ack({
+        transaction_id: _payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
+      });
+    });
     display.once("play-video-transition", (payload, ack) => {
       ack({
         transaction_id: payload.transaction_id,
@@ -201,8 +231,9 @@ describe("Tablet controls", () => {
       tablet.emit(
         "subzone-control",
         {
-          zone_id: "foyer-welcome",
-          element_id: "foyer_accent",
+          zone_id: "ambient-marina-state",
+          element_id: "sub_zone_10",
+          model: "main-model",
           action: "activate",
           intensity: 0.55,
           animation_duration_ms: 300,
@@ -210,19 +241,21 @@ describe("Tablet controls", () => {
         resolve,
       );
     });
-    const [payload, payload2] = await hardwareState;
+    const payload = await hardwareState;
+    await Bun.sleep(30);
 
     expect(result.status).toBe("success");
     expect(payload.scope).toBe("subzone");
-    expect(payload2).toEqual(payload);
     expect(payload.lights).toEqual([
       {
-        element_id: "foyer_accent",
+        element_id: "sub_zone_10",
+        model: "main-model",
         action: "activate",
         intensity: 0.55,
         animation_duration_ms: 300,
       },
     ]);
+    expect(pi2Seen).toBe(false);
     expect(server.runtime.state.mode).toBe("subzone");
   });
 
@@ -230,7 +263,7 @@ describe("Tablet controls", () => {
     let releaseFirstPreparation!: () => void;
     const firstPrepared = new Promise<void>((resolve) => {
       display.on("prepare-video", (payload, ack) => {
-        if (payload.zone_id === "foyer-welcome") {
+        if (payload.zone_id === "ambient-marina-state") {
           releaseFirstPreparation = () => {
             ack({
               transaction_id: payload.transaction_id,
@@ -265,21 +298,29 @@ describe("Tablet controls", () => {
     });
 
     const firstResult = new Promise<any>((resolve) => {
-      tablet.emit("zone-activation", { zone_id: "foyer-welcome" }, resolve);
+      tablet.emit(
+        "zone-activation",
+        { zone_id: "ambient-marina-state" },
+        resolve,
+      );
     });
     await firstPrepared;
 
     const secondResult = new Promise<any>((resolve) => {
-      tablet.emit("zone-activation", { zone_id: "corridor-reveal" }, resolve);
+      tablet.emit(
+        "zone-activation",
+        { zone_id: "masterplan-reveal" },
+        resolve,
+      );
     });
     await waitUntil(
-      () => server.runtime.state.activeZoneId === "corridor-reveal",
+      () => server.runtime.state.activeZoneId === "masterplan-reveal",
     );
     releaseFirstPreparation();
 
     expect((await secondResult).status).toBe("success");
     expect((await firstResult).status).toBe("error");
-    expect(appliedZones).toEqual(["corridor-reveal"]);
+    expect(appliedZones).toEqual(["masterplan-reveal"]);
   });
 
   test("stops video and switches every output off", async () => {
@@ -350,7 +391,7 @@ describe("Tablet controls", () => {
     const result = await new Promise<any>((resolve) => {
       tablet.emit(
         "lighting-control",
-        { lighting_id: "lighting-1", action: "activate" },
+        { lighting_id: "marina-reserve", action: "activate" },
         resolve,
       );
     });
@@ -360,13 +401,16 @@ describe("Tablet controls", () => {
     expect(result.status).toBe("success");
     expect(pi2Seen).toBe(false);
     expect(pi1Payload).toBeDefined();
-    expect(pi1Payload!.lighting_id).toBe("lighting-1");
+    expect(pi1Payload!.lighting_id).toBe("marina-reserve");
     expect(pi1Payload!.scope).toBe("lighting");
     expect(pi1Payload!.lights).toHaveLength(2);
     expect(
       pi1Payload!.lights.every((light) => light.action === "activate"),
     ).toBe(true);
-    expect(server.runtime.state.activeLightingId).toBe("lighting-1");
+    expect(
+      pi1Payload!.lights.every((light) => light.model === "main-model"),
+    ).toBe(true);
+    expect(server.runtime.state.activeLightingId).toBe("marina-reserve");
   });
 
   test("routes clubhouse lighting only to raspberry-pi-2", async () => {
@@ -393,7 +437,7 @@ describe("Tablet controls", () => {
     const result = await new Promise<any>((resolve) => {
       tablet.emit(
         "lighting-control",
-        { lighting_id: "lighting-2", action: "deactivate" },
+        { lighting_id: "beach", action: "deactivate" },
         resolve,
       );
     });
@@ -403,9 +447,12 @@ describe("Tablet controls", () => {
     expect(result.status).toBe("success");
     expect(pi1Seen).toBe(false);
     expect(pi2Payload).toBeDefined();
-    expect(pi2Payload!.lighting_id).toBe("lighting-2");
+    expect(pi2Payload!.lighting_id).toBe("beach");
     expect(
       pi2Payload!.lights.every((light) => light.action === "deactivate"),
+    ).toBe(true);
+    expect(
+      pi2Payload!.lights.every((light) => light.model === "clubhouse-model"),
     ).toBe(true);
   });
 });

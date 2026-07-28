@@ -64,7 +64,7 @@ export const ambientMarinaState: Zone = {
 
 export const whyNagpurMarina: Zone = {
   id: "why-nagpur-marina",
-  sequence_order: 1,
+  sequence_order: 2,
   name: "Why Nagpur Marina",
   video_url: "/10_sec_video.mp4",
   video_duration_ms: 10_000,
@@ -87,7 +87,7 @@ export const whyNagpurMarina: Zone = {
 
 export const masterplanReveal: Zone = {
   id: "masterplan-reveal",
-  sequence_order: 2,
+  sequence_order: 3,
   name: "Masterplan Reveal",
   video_url: "/14_sec_video.mp4",
   video_duration_ms: 14_000,

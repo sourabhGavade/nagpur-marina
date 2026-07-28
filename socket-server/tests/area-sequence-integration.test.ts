@@ -165,10 +165,10 @@ describe("continuous Area sequence", () => {
     await waitUntil(() => appliedZones.length >= 4);
 
     expect(appliedZones.slice(0, 4)).toEqual([
-      "gallery-showcase",
-      "lounge-finale",
-      "foyer-welcome",
-      "corridor-reveal",
+      "lifestyle-anchors-intro",
+      "waterfront-beach",
+      "waterfront-amenities",
+      "clubhouse-interior",
     ]);
     const firstTransitionDelay = executionTimes[1]! - executionTimes[0]!;
     expect(firstTransitionDelay).toBeGreaterThanOrEqual(60);
@@ -210,7 +210,7 @@ describe("continuous Area sequence", () => {
     const zoneResult = await new Promise<any>((resolve) => {
       tablet.emit(
         "zone-activation",
-        { zone_id: "gallery-showcase" },
+        { zone_id: "lifestyle-anchors-intro" },
         resolve,
       );
     });
@@ -221,6 +221,6 @@ describe("continuous Area sequence", () => {
 
     expect(appliedZones).toHaveLength(dispatchCountAfterOverride);
     expect(server.runtime.state.mode).toBe("zone");
-    expect(server.runtime.state.activeZoneId).toBe("gallery-showcase");
+    expect(server.runtime.state.activeZoneId).toBe("lifestyle-anchors-intro");
   });
 });

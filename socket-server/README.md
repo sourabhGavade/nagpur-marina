@@ -55,11 +55,14 @@ ready.
 
 Routing rules:
 
-- **Area / Zone / Sub-zone / Stop / Emergency** — `hardware-apply-state` (and
-  emergency shutdown) are broadcast to both Pis. Both must ACK apply-state.
-- **Lighting control** — routed to one Pi by lighting `model`:
+- **Area / Zone** — `hardware-apply-state` is split by each SubZone `model`:
   - `main-model` → `raspberry-pi-1`
-  - `clubhouse` → `raspberry-pi-2`
+  - `clubhouse-model` → `raspberry-pi-2`
+  Both Pis always receive a payload (empty `lights` clears that Pi). Both must ACK.
+- **Lighting / Sub-zone control** — routed only to Pis that have lights in the
+  command (omit empty), using the same model → Pi mapping.
+- **Stop / Emergency** — broadcast to both Pis. Both must ACK apply-state for
+  stop/safe-off.
 
 The server sends `server-heartbeat` every five seconds and marks a client
 offline after 30 seconds without its corresponding heartbeat. A failed
