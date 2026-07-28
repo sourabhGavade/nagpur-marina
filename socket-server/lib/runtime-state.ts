@@ -1,5 +1,5 @@
 import type { ClientRole } from "../utils/types.ts";
-import { EXPECTED_HARDWARE_CLIENTS } from "./client-registry.ts";
+import { EXPECTED_HARDWARE_CLIENTS } from "./consts.ts";
 
 export type NodeRole = Exclude<ClientRole, "tablet">;
 export type RuntimeMode = "idle" | "area" | "zone" | "subzone" | "lighting";

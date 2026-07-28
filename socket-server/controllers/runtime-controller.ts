@@ -1,9 +1,9 @@
 import {
-  EXPECTED_HARDWARE_CLIENTS,
   type ClientRegistry,
   type AppIo,
   type AppSocket,
 } from "../lib/client-registry.ts";
+import { EXPECTED_HARDWARE_CLIENTS } from "../lib/consts.ts";
 import {
   hardwareClientsForLights,
   partitionLightsByHardwareClient,
@@ -356,8 +356,7 @@ export class RuntimeController {
             zone_id: zone.id,
             execute_at_ms: executeAtMs,
             video_duration_ms: zone.video_duration_ms,
-            video_crossfade_duration_ms:
-              zone.video_crossfade_duration_ms,
+            video_crossfade_duration_ms: zone.video_crossfade_duration_ms,
             loop: this.state.mode !== "area",
           },
           ack as SocketAck<DisplayPlaybackResult>,
@@ -454,9 +453,7 @@ export class RuntimeController {
   }
 
   broadcastRuntimeStatus(): void {
-    this.io
-      .to(TABLET_ROOM)
-      .emit("runtime-status", this.getRuntimeStatus());
+    this.io.to(TABLET_ROOM).emit("runtime-status", this.getRuntimeStatus());
   }
 
   async enterSystemFailSafe(reason: string): Promise<void> {

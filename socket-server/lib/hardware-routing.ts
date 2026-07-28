@@ -2,7 +2,7 @@ import {
   HARDWARE_CLIENT_CLUBHOUSE,
   HARDWARE_CLIENT_MAIN_MODEL,
   LIGHTING_MODEL_TO_HARDWARE_CLIENT,
-} from "./client-registry.ts";
+} from "./consts.ts";
 import type { SubZoneHardwareState } from "../utils/types.ts";
 
 export const HARDWARE_CLIENT_IDS = [
