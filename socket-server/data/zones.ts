@@ -39,29 +39,6 @@ const sharedVideoUrl = "/10_sec_video.mp4";
 const sharedVideoDurationMs = 10_000;
 const sharedTabletImageUrl = "/images/zones/foyer-welcome.jpg";
 
-export const ambientMarinaState: Zone = {
-  id: "ambient-marina-state",
-  sequence_order: 1,
-  name: "Ambient Marina State",
-  video_url: "/10_sec_video.mp4",
-  video_duration_ms: 10_000,
-  video_crossfade_duration_ms: 500,
-  tabletImageUrl: "/images/zones/foyer-welcome.jpg",
-  subZones: [
-    subZoneMainModel10,
-    subZoneMainModel11,
-    subZoneMainModel24,
-    subZoneClubhouseModel1,
-    subZoneClubhouseModel2,
-    subZoneClubhouseModel3,
-    subZoneClubhouseModel4,
-    subZoneClubhouseModel5,
-    subZoneClubhouseModel7,
-    subZoneClubhouseModel8,
-    subZoneClubhouseModel9,
-  ],
-};
-
 export const whyNagpurMarina: Zone = {
   id: "why-nagpur-marina",
   sequence_order: 2,
@@ -391,7 +368,6 @@ export const marinaRiviera: Zone = {
 };
 
 export const zones: Zone[] = [
-  ambientMarinaState,
   whyNagpurMarina,
   masterplanReveal,
   lifestyleAnchorsIntro,
