@@ -16,27 +16,15 @@ export function buildAreaSequence(
   appConfig: AppConfig,
   startingAreaId: number,
 ): SequenceItem[] {
-  const orderedAreas = [...appConfig.areas].sort(
-    (left, right) => left.sequence_order - right.sequence_order,
-  );
-  const startingIndex = orderedAreas.findIndex(
-    ({ id }) => id === startingAreaId,
-  );
+  const area = appConfig.areas.find(({ id }) => id === startingAreaId);
 
-  if (startingIndex === -1) {
+  if (!area) {
     throw new Error(`Unknown Area: ${startingAreaId}`);
   }
 
-  const rotatedAreas = [
-    ...orderedAreas.slice(startingIndex),
-    ...orderedAreas.slice(0, startingIndex),
-  ];
-
-  return rotatedAreas.flatMap((area) =>
-    [...area.zones]
-      .sort((left, right) => left.sequence_order - right.sequence_order)
-      .map((zone) => ({ area, zone })),
-  );
+  return [...area.zones]
+    .sort((left, right) => left.sequence_order - right.sequence_order)
+    .map((zone) => ({ area, zone }));
 }
 
 export function getTransitionOffset(zone: Zone): number {
@@ -103,8 +91,17 @@ export class AreaSequenceController {
     generation: number,
   ): Promise<void> {
     while (this.runtime.state.isCurrent(generation)) {
+      const nextIndex = currentIndex + 1;
+      if (nextIndex >= sequence.length) {
+        await this.finishSequence(
+          sequence[currentIndex]!,
+          currentStartedAtMs,
+          generation,
+        );
+        return;
+      }
+
       const current = sequence[currentIndex]!;
-      const nextIndex = (currentIndex + 1) % sequence.length;
       const next = sequence[nextIndex]!;
 
       await this.runtime.prepareZoneVideo(next.zone);
@@ -129,6 +126,22 @@ export class AreaSequenceController {
       currentIndex = nextIndex;
       currentStartedAtMs = executeAtMs;
     }
+  }
+
+  private async finishSequence(
+    last: SequenceItem,
+    startedAtMs: number,
+    generation: number,
+  ): Promise<void> {
+    const endsAtMs = startedAtMs + last.zone.video_duration_ms;
+    const shouldContinue = await this.runtime.state.waitFor(
+      this.runtime.timeUntilDispatch(endsAtMs),
+      generation,
+    );
+    if (!shouldContinue) return;
+
+    this.assertCurrent(generation);
+    await this.runtime.stopNormally();
   }
 
   private async dispatch(

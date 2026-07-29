@@ -217,7 +217,8 @@ export default function ZonesPage() {
                               onClick={() => controlZone(zone.id)}
                               disabled={
                                 actionState === "starting" ||
-                                actionState === "stopping"
+                                actionState === "stopping" ||
+                                runtimeStatus.mode === "area"
                               }
                               aria-label={`${isPlaying ? "Pause" : "Play"} ${zone.name}`}
                             >

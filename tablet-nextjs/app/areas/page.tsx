@@ -264,6 +264,8 @@ export default function AreasPage() {
                         const status = zoneStatus(area.id, zone.id, zoneIndex);
                         const isCurrentZone =
                           runtimeStatus.active_zone_id === zone.id;
+                        const areaSequenceActive =
+                          runtimeStatus.mode === "area";
 
                         return (
                           <li
@@ -280,9 +282,14 @@ export default function AreasPage() {
                               type="button"
                               onClick={() => {
                                 setSelectedAreaId(area.id);
-                                void controlZone(zone.id);
+                                if (!areaSequenceActive) {
+                                  void controlZone(zone.id);
+                                }
                               }}
-                              disabled={actionState === "starting"}
+                              disabled={
+                                actionState === "starting" ||
+                                areaSequenceActive
+                              }
                             >
                               <span>{zone.name}</span>
                               {status ? <small>{status}</small> : null}

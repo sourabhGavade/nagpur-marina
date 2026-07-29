@@ -30,6 +30,9 @@ const socketUrl =
     ? "http://localhost:4000"
     : `${window.location.protocol}//${window.location.hostname}:4000`);
 
+const idleVideoUrl =
+  process.env.NEXT_PUBLIC_IDLE_VIDEO_URL ?? "/10_sec_video.mp4";
+
 export default function DisplayPage() {
   const videoARef = useRef<HTMLVideoElement>(null);
   const videoBRef = useRef<HTMLVideoElement>(null);
@@ -39,6 +42,7 @@ export default function DisplayPage() {
   const playbackStateRef = useRef<PlaybackState>("idle");
   const activeZoneRef = useRef<string | null>(null);
   const startedAtRef = useRef(0);
+  const idleRequestRef = useRef(0);
 
   const [connected, setConnected] = useState(false);
   const [playbackState, setPlaybackState] = useState<PlaybackState>("idle");
@@ -63,23 +67,91 @@ export default function DisplayPage() {
       setActiveZone(zoneId);
     };
 
-    const stopPlayback = () => {
+    const playIdleVideo = () => {
       if (playTimerRef.current) {
         clearTimeout(playTimerRef.current);
         playTimerRef.current = null;
       }
 
-      for (const video of videos) {
-        video.pause();
-        video.currentTime = 0;
-        video.style.transition = "none";
-        video.style.opacity = "0";
+      const previousIndex = activeIndexRef.current;
+      const previous = videos[previousIndex];
+      const alreadyIdle =
+        playbackStateRef.current === "idle" &&
+        previous.loop &&
+        !previous.paused &&
+        previous.currentSrc.includes(idleVideoUrl);
+
+      if (alreadyIdle) {
+        preparedIndexRef.current = null;
+        setRuntimeState("idle", null);
+        setErrorMessage("");
+        return;
       }
 
-      activeIndexRef.current = 0;
-      preparedIndexRef.current = null;
-      setRuntimeState("idle", null);
-      setErrorMessage("");
+      const requestId = ++idleRequestRef.current;
+      const hasVisibleContent =
+        previous.style.opacity !== "0" && Boolean(previous.currentSrc);
+      const idleIndex = hasVisibleContent
+        ? previousIndex === 0
+          ? 1
+          : 0
+        : 0;
+      const idle = videos[idleIndex];
+
+      idle.pause();
+      idle.loop = true;
+      idle.style.transition = "none";
+      if (idle !== previous) {
+        idle.style.opacity = "0";
+      }
+
+      const finishIdle = async () => {
+        if (requestId !== idleRequestRef.current) return;
+        try {
+          idle.currentTime = 0;
+          await idle.play();
+          if (requestId !== idleRequestRef.current) return;
+
+          idle.style.opacity = "1";
+          if (previous !== idle) {
+            previous.style.transition = "none";
+            previous.style.opacity = "0";
+            previous.pause();
+            previous.currentTime = 0;
+          }
+
+          activeIndexRef.current = idleIndex;
+          preparedIndexRef.current = null;
+          setRuntimeState("idle", null);
+          setErrorMessage("");
+        } catch (error) {
+          if (requestId !== idleRequestRef.current) return;
+          const message =
+            error instanceof Error ? error.message : "Idle video failed";
+          setRuntimeState("error");
+          setErrorMessage(message);
+        }
+      };
+
+      const onReady = () => {
+        idle.removeEventListener("error", onError);
+        void finishIdle();
+      };
+      const onError = () => {
+        idle.removeEventListener("canplay", onReady);
+        if (requestId !== idleRequestRef.current) return;
+        setRuntimeState("error");
+        setErrorMessage(`Unable to load idle video ${idleVideoUrl}`);
+      };
+
+      idle.addEventListener("canplay", onReady, { once: true });
+      idle.addEventListener("error", onError, { once: true });
+      idle.src = idleVideoUrl;
+      idle.load();
+    };
+
+    const stopPlayback = () => {
+      playIdleVideo();
     };
 
     const socket: Socket = io(socketUrl, {
@@ -129,6 +201,7 @@ export default function DisplayPage() {
           return;
         }
 
+        idleRequestRef.current += 1;
         const standbyIndex = activeIndexRef.current === 0 ? 1 : 0;
         const standby = videos[standbyIndex];
         const hasActivePlayback =
@@ -341,10 +414,12 @@ export default function DisplayPage() {
     };
     const heartbeat = window.setInterval(sendHeartbeat, 5_000);
 
+    playIdleVideo();
     socket.connect();
     socket.on("connect", sendHeartbeat);
 
     return () => {
+      idleRequestRef.current += 1;
       window.clearInterval(heartbeat);
       if (playTimerRef.current) clearTimeout(playTimerRef.current);
       socket.disconnect();
@@ -386,7 +461,9 @@ export default function DisplayPage() {
           </strong>
           <small>
             {errorMessage ||
-              (activeZone ? `Playing ${activeZone}` : "Waiting for a command")}
+              (activeZone
+                ? `Playing ${activeZone}`
+                : "Idle loop playing")}
           </small>
         </div>
       </div>

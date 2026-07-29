@@ -109,6 +109,13 @@ describe("continuous Area sequence", () => {
         resumed_at_ms: Date.now(),
       });
     });
+    display.on("stop-video", (payload, ack) => {
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        stopped_at_ms: Date.now(),
+      });
+    });
 
     tablet.connect();
     hardware.connect();
@@ -156,24 +163,27 @@ describe("continuous Area sequence", () => {
     });
   }
 
-  test("continues through later Areas and wraps to the first", async () => {
+  test("plays Zones within the selected Area and stops at the end", async () => {
     const result = await new Promise<any>((resolve) => {
-      tablet.emit("area-activation", { area_id: 2 }, resolve);
+      tablet.emit("area-activation", { area_id: 1 }, resolve);
     });
 
     expect(result.status).toBe("success");
-    await waitUntil(() => appliedZones.length >= 4);
+    await waitUntil(() => appliedZones.length >= 2);
 
-    expect(appliedZones.slice(0, 4)).toEqual([
-      "lifestyle-anchors-intro",
-      "waterfront-beach",
-      "waterfront-amenities",
-      "clubhouse-interior",
+    expect(appliedZones.slice(0, 2)).toEqual([
+      "why-nagpur-marina",
+      "masterplan-reveal",
     ]);
     const firstTransitionDelay = executionTimes[1]! - executionTimes[0]!;
     expect(firstTransitionDelay).toBeGreaterThanOrEqual(60);
     expect(firstTransitionDelay).toBeLessThan(120);
     expect(server.runtime.state.mode).toBe("area");
+    expect(server.runtime.state.activeZoneId).toBe("masterplan-reveal");
+
+    await waitUntil(() => server.runtime.state.mode === "idle", 1_500);
+    expect(server.runtime.state.activeZoneId).toBeNull();
+    expect(appliedZones).not.toContain("lifestyle-anchors-intro");
   });
 
   test("pauses Area timing and resumes with the remaining delay", async () => {
@@ -201,11 +211,36 @@ describe("continuous Area sequence", () => {
     await waitUntil(() => appliedZones.length > countWhilePaused);
   });
 
-  test("stops dispatching when a Zone override invalidates the loop", async () => {
+  test("plays one Zone once and returns to idle when finished", async () => {
+    let loopFlag: boolean | undefined;
+    display.once("play-video-transition", (payload) => {
+      loopFlag = payload.loop;
+    });
+
+    const result = await new Promise<any>((resolve) => {
+      tablet.emit(
+        "zone-activation",
+        { zone_id: "why-nagpur-marina" },
+        resolve,
+      );
+    });
+
+    expect(result.status).toBe("success");
+    expect(server.runtime.state.mode).toBe("zone");
+    expect(server.runtime.state.activeZoneId).toBe("why-nagpur-marina");
+    expect(loopFlag).toBe(false);
+
+    await waitUntil(() => server.runtime.state.mode === "idle", 1_500);
+    expect(server.runtime.state.activeZoneId).toBeNull();
+  });
+
+  test("rejects Zone activation while an Area sequence is playing", async () => {
     const areaResult = await new Promise<any>((resolve) => {
       tablet.emit("area-activation", { area_id: 1 }, resolve);
     });
     expect(areaResult.status).toBe("success");
+    await waitUntil(() => appliedZones.length >= 1);
+    expect(server.runtime.state.mode).toBe("area");
 
     const zoneResult = await new Promise<any>((resolve) => {
       tablet.emit(
@@ -214,13 +249,9 @@ describe("continuous Area sequence", () => {
         resolve,
       );
     });
-    expect(zoneResult.status).toBe("success");
-
-    const dispatchCountAfterOverride = appliedZones.length;
-    await Bun.sleep(100);
-
-    expect(appliedZones).toHaveLength(dispatchCountAfterOverride);
-    expect(server.runtime.state.mode).toBe("zone");
-    expect(server.runtime.state.activeZoneId).toBe("lifestyle-anchors-intro");
+    expect(zoneResult.status).toBe("error");
+    expect(zoneResult.message).toContain("Area sequence");
+    expect(server.runtime.state.mode).toBe("area");
+    expect(appliedZones).not.toContain("lifestyle-anchors-intro");
   });
 });

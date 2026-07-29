@@ -5,10 +5,7 @@ import {
 } from "../controllers/area-sequence-controller.ts";
 import { config } from "../utils/config.ts";
 
-const allZoneIdsInOrder = [
-  "ambient-marina-state",
-  "why-nagpur-marina",
-  "masterplan-reveal",
+const lifestyleZoneIdsInOrder = [
   "lifestyle-anchors-intro",
   "waterfront-beach",
   "waterfront-amenities",
@@ -16,32 +13,28 @@ const allZoneIdsInOrder = [
   "active-zone",
   "serenity-zone",
   "neighbourhood-parks-orchards",
-  "marina-reserve",
-  "marina-euphoria",
-  "marina-grove",
-  "marina-bayview",
-  "marina-grand",
-  "marina-riviera",
 ];
 
+const contextZoneIdsInOrder = ["why-nagpur-marina", "masterplan-reveal"];
+
 describe("Area sequence planning", () => {
-  test("starts at the selected Area and wraps globally", () => {
+  test("plays only Zones within the selected Area", () => {
     const sequence = buildAreaSequence(config, 2);
 
-    expect(sequence.map(({ zone }) => zone.id)).toEqual([
-      ...allZoneIdsInOrder.slice(3),
-      ...allZoneIdsInOrder.slice(0, 3),
-    ]);
+    expect(sequence.map(({ zone }) => zone.id)).toEqual(
+      lifestyleZoneIdsInOrder,
+    );
+    expect(sequence.every(({ area }) => area.id === 2)).toBe(true);
   });
 
-  test("sorts Areas and Zones by sequence_order", () => {
+  test("sorts Zones by sequence_order within the selected Area", () => {
     const unordered = structuredClone(config);
     unordered.areas.reverse();
     for (const area of unordered.areas) area.zones.reverse();
 
     const sequence = buildAreaSequence(unordered, 1);
 
-    expect(sequence.map(({ zone }) => zone.id)).toEqual(allZoneIdsInOrder);
+    expect(sequence.map(({ zone }) => zone.id)).toEqual(contextZoneIdsInOrder);
   });
 
   test("starts a crossfade before the current video ends", () => {

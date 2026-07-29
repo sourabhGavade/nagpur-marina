@@ -101,6 +101,11 @@ export class ControlController {
 
     try {
       this.assertControlsAvailable();
+      if (this.runtime.state.mode === "area") {
+        throw new Error(
+          "Zone control is unavailable while an Area sequence is playing",
+        );
+      }
       const request = parseZoneActivationRequest(payload, this.appConfig);
       const { area, zone } = this.findZone(request.zone_id);
       const lights: SubZoneHardwareState[] = zone.subZones.map((subZone) => ({
@@ -231,6 +236,20 @@ export class ControlController {
         this.runtime.playZoneVideo(zone, executeAtMs),
       ]);
       this.assertCurrent(generation);
+
+      if (mode === "zone") {
+        void this.finishZonePlayback(zone, executeAtMs, generation).catch(
+          async (error) => {
+            if (!this.runtime.state.isCurrent(generation)) return;
+            console.error(
+              `[zone] Playback finish failed: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+            await this.runtime.enterSystemFailSafe("Zone playback failed");
+          },
+        );
+      }
     } catch (error) {
       if (this.runtime.state.isCurrent(generation)) {
         await this.runtime.enterSystemFailSafe(
@@ -239,6 +258,22 @@ export class ControlController {
       }
       throw error;
     }
+  }
+
+  private async finishZonePlayback(
+    zone: Zone,
+    startedAtMs: number,
+    generation: number,
+  ): Promise<void> {
+    const endsAtMs = startedAtMs + zone.video_duration_ms;
+    const shouldContinue = await this.runtime.state.waitFor(
+      this.runtime.timeUntilDispatch(endsAtMs),
+      generation,
+    );
+    if (!shouldContinue) return;
+
+    this.assertCurrent(generation);
+    await this.runtime.stopNormally();
   }
 
   private async handleSequenceStop(

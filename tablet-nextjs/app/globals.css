@@ -490,6 +490,22 @@ button {
   color: #fff;
 }
 
+.marina-chapter li > button:first-child:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.marina-chapter li > button:first-child:disabled:hover {
+  background: transparent;
+  color: rgba(245, 247, 251, 0.82);
+}
+
+.marina-chapter li.is-playing > button:first-child:disabled:hover,
+.marina-chapter li.is-playing .marina-zone-row:disabled:hover {
+  background: transparent;
+  color: #fff;
+}
+
 .marina-chapter li > button:first-child span,
 .marina-zone-row span {
   overflow: hidden;
