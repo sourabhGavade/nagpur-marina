@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { io, type Socket } from "socket.io-client";
+import { v4 } from "uuid";
 
 export type LightingModel = "main-model" | "clubhouse-model";
 
@@ -147,7 +148,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
       transports: ["websocket"],
       auth: {
         role: "tablet",
-        client_id: `tablet-${crypto.randomUUID()}`,
+        client_id: `tablet-${v4()}`,
       },
       reconnection: true,
     });
