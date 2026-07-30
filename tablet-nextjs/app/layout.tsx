@@ -30,7 +30,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body>
+      <body className="h-full">
         <TabletContextProvider>{children}</TabletContextProvider>
         <Toaster position="top-center" />
       </body>
