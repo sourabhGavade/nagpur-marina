@@ -205,8 +205,8 @@ export const activeZone: Zone = {
   id: "active-zone",
   sequence_order: 5,
   name: "Active Zone",
-  video_url: sharedVideoUrl,
-  video_duration_ms: sharedVideoDurationMs,
+  video_url: `${zoneTVVideoBaseUrl}/active-zone.mp4`,
+  video_duration_ms: 48_000,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
   subZones: [
@@ -264,8 +264,8 @@ export const marinaReserve: Zone = {
   id: "marina-reserve",
   sequence_order: 1,
   name: "Marina Reserve",
-  video_url: sharedVideoUrl,
-  video_duration_ms: sharedVideoDurationMs,
+  video_url: `${zoneTVVideoBaseUrl}/marina-reserve.mp4`,
+  video_duration_ms: 40_000,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: sharedTabletImageUrl,
   subZones: [
