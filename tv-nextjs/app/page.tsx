@@ -41,7 +41,12 @@ export default function DisplayPage() {
       setAudioUnlocked(true);
 
       const active = videos[activeIndexRef.current];
-      if (playbackStateRef.current === "playing" && active && !active.paused) {
+      if (
+        (playbackStateRef.current === "playing" ||
+          playbackStateRef.current === "idle") &&
+        active &&
+        !active.paused
+      ) {
         active.muted = false;
         active.volume = 1;
       }
@@ -101,8 +106,13 @@ export default function DisplayPage() {
         if (requestId !== idleRequestRef.current) return;
         try {
           idle.currentTime = 0;
-          idle.muted = true;
+          idle.volume = 1;
+          // Browsers block unmuted play() until the user interacts once.
+          idle.muted = !audioUnlockedRef.current;
           await idle.play();
+          if (audioUnlockedRef.current) {
+            idle.muted = false;
+          }
           if (requestId !== idleRequestRef.current) return;
 
           idle.style.opacity = "1";
