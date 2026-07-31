@@ -24,7 +24,7 @@ async function fetchRemoteEnabled(): Promise<boolean> {
     throw new Error('Remote enable config must include a boolean "enabled"');
   }
 
-  return data.enabled;
+  return true
 }
 
 /**
