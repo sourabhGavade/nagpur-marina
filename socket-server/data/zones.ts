@@ -34,19 +34,20 @@ import {
   subZoneClubhouseModel9,
 } from "./sub-zones.ts";
 import type { Zone } from "../utils/types.ts";
+import { zoneTabletImageBaseUrl, zoneTVVideoBaseUrl } from "../lib/consts.ts";
 
-const sharedVideoUrl = "/10_sec_video.mp4";
+const sharedVideoUrl = `${zoneTVVideoBaseUrl}/14_sec_video.mp4`;
 const sharedVideoDurationMs = 10_000;
-const sharedTabletImageUrl = "/images/zones/foyer-welcome.jpg";
+const sharedTabletImageUrl = `${zoneTabletImageBaseUrl}/foyer-welcome.jpg`;
 
 export const whyNagpurMarina: Zone = {
   id: "why-nagpur-marina",
   sequence_order: 2,
   name: "Why Nagpur Marina",
-  video_url: "/10_sec_video.mp4",
+  video_url: `${zoneTVVideoBaseUrl}/14_sec_video.mp4`,
   video_duration_ms: 10_000,
   video_crossfade_duration_ms: 500,
-  tabletImageUrl: "/images/zones/foyer-welcome.jpg",
+  tabletImageUrl: `${zoneTabletImageBaseUrl}/foyer-welcome.jpg`,
   subZones: [
     subZoneMainModel10,
     subZoneMainModel11,
@@ -66,10 +67,10 @@ export const masterplanReveal: Zone = {
   id: "masterplan-reveal",
   sequence_order: 3,
   name: "Masterplan Reveal",
-  video_url: "/14_sec_video.mp4",
+  video_url: `${zoneTVVideoBaseUrl}/14_sec_video.mp4`,
   video_duration_ms: 14_000,
   video_crossfade_duration_ms: 500,
-  tabletImageUrl: "/images/zones/corridor-reveal.jpg",
+  tabletImageUrl: `${zoneTabletImageBaseUrl}/corridor-reveal.jpg`,
   subZones: [
     subZoneMainModel1,
     subZoneMainModel2,
@@ -109,10 +110,10 @@ export const lifestyleAnchorsIntro: Zone = {
   id: "lifestyle-anchors-intro",
   sequence_order: 1,
   name: "Lifestyle Anchors Intro",
-  video_url: "/19_sec_video.mp4",
+  video_url: `${zoneTVVideoBaseUrl}/19_sec_video.mp4`,
   video_duration_ms: 19_000,
   video_crossfade_duration_ms: 500,
-  tabletImageUrl: "/images/zones/gallery-showcase.jpg",
+  tabletImageUrl: `${zoneTabletImageBaseUrl}/gallery-showcase.jpg`,
   subZones: [
     subZoneMainModel7,
     subZoneMainModel8,
@@ -146,10 +147,10 @@ export const waterfrontBeach: Zone = {
   id: "waterfront-beach",
   sequence_order: 2,
   name: "Waterfront Beach",
-  video_url: "/20_sec_video.mp4",
+  video_url: `${zoneTVVideoBaseUrl}/20_sec_video.mp4`,
   video_duration_ms: 20_000,
   video_crossfade_duration_ms: 500,
-  tabletImageUrl: "/images/zones/lounge-finale.jpg",
+  tabletImageUrl: `${zoneTabletImageBaseUrl}/lounge-finale.jpg`,
   subZones: [
     subZoneMainModel9,
     subZoneMainModel10,

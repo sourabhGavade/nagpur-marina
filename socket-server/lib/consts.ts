@@ -7,3 +7,6 @@ export const LIGHTING_MODEL_TO_HARDWARE_CLIENT = {
   "main-model": HARDWARE_CLIENT_MAIN_MODEL,
   "clubhouse-model": HARDWARE_CLIENT_CLUBHOUSE,
 } as const;
+
+export const zoneTabletImageBaseUrl = "/zone-tablet-images";
+export const zoneTVVideoBaseUrl = "/zone-tv-videos";

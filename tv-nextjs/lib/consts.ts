@@ -4,4 +4,4 @@ export const socketUrl =
     ? "http://localhost:4000"
     : `${window.location.protocol}//${window.location.hostname}:4000`);
 
-export const idleVideoUrl = "/10_sec_video.mp4";
+export const idleVideoUrl = "/idle-tv-videos/10_sec_video.mp4";
