@@ -4,29 +4,9 @@ import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { DeviceStatuses } from "../../components/device-statuses";
-import { useTabletContext } from "../../contexts/tablet-context";
-
-const sections = [
-  {
-    key: "areas",
-    number: "01",
-    title: "Chapters",
-    description: "Browse and activate experience areas",
-  },
-  {
-    key: "zones",
-    number: "02",
-    title: "Zones",
-    description: "View the zones available in each area",
-  },
-  {
-    key: "lighting",
-    number: "03",
-    title: "Lighting",
-    description: "Toogle the lighting directly.",
-  },
-] as const;
+import { DeviceStatuses } from "@/components/device-statuses";
+import { useTabletContext } from "@/contexts/tablet-context";
+import { sections } from "@/lib/consts";
 
 export default function JourneyPage() {
   const { layout, connectionState } = useTabletContext();

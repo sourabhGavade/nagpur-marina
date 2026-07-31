@@ -2,36 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-
-type PlaybackState = "idle" | "preparing" | "playing" | "paused" | "error";
-
-interface PrepareVideoPayload {
-  transaction_id: string;
-  zone_id: string;
-  video_url: string;
-}
-
-interface PlayVideoPayload {
-  transaction_id: string;
-  zone_id: string;
-  execute_at_ms: number;
-  video_duration_ms: number;
-  video_crossfade_duration_ms: number;
-  loop: boolean;
-}
-
-interface VideoControlPayload {
-  transaction_id: string;
-}
-
-const socketUrl =
-  process.env.NEXT_PUBLIC_SOCKET_URL ??
-  (typeof window === "undefined"
-    ? "http://localhost:4000"
-    : `${window.location.protocol}//${window.location.hostname}:4000`);
-
-const idleVideoUrl =
-  process.env.NEXT_PUBLIC_IDLE_VIDEO_URL ?? "/10_sec_video.mp4";
+import { socketUrl, idleVideoUrl } from "@/lib/consts";
+import type {
+  PlaybackState,
+  PrepareVideoPayload,
+  PlayVideoPayload,
+  VideoControlPayload,
+} from "@/lib/types";
 
 export default function DisplayPage() {
   const videoARef = useRef<HTMLVideoElement>(null);
@@ -91,11 +68,7 @@ export default function DisplayPage() {
       const requestId = ++idleRequestRef.current;
       const hasVisibleContent =
         previous.style.opacity !== "0" && Boolean(previous.currentSrc);
-      const idleIndex = hasVisibleContent
-        ? previousIndex === 0
-          ? 1
-          : 0
-        : 0;
+      const idleIndex = hasVisibleContent ? (previousIndex === 0 ? 1 : 0) : 0;
       const idle = videos[idleIndex];
 
       idle.pause();
@@ -461,9 +434,7 @@ export default function DisplayPage() {
           </strong>
           <small>
             {errorMessage ||
-              (activeZone
-                ? `Playing ${activeZone}`
-                : "Idle loop playing")}
+              (activeZone ? `Playing ${activeZone}` : "Idle loop playing")}
           </small>
         </div>
       </div>
