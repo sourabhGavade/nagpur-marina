@@ -37,7 +37,7 @@ import type { Zone } from "../utils/types.ts";
 import { zoneTabletImageBaseUrl, zoneTVVideoBaseUrl } from "../lib/consts.ts";
 
 const sharedVideoUrl = `${zoneTVVideoBaseUrl}/14_sec_video.mp4`;
-const sharedVideoDurationMs = 10_000;
+const sharedVideoDurationMs = 14_000;
 const sharedTabletImageUrl = `${zoneTabletImageBaseUrl}/foyer-welcome.jpg`;
 
 export const whyNagpurMarina: Zone = {
@@ -45,7 +45,7 @@ export const whyNagpurMarina: Zone = {
   sequence_order: 2,
   name: "Why Nagpur Marina",
   video_url: `${zoneTVVideoBaseUrl}/14_sec_video.mp4`,
-  video_duration_ms: 10_000,
+  video_duration_ms: 14_000,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/foyer-welcome.jpg`,
   subZones: [
