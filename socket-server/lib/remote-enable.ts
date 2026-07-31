@@ -24,7 +24,12 @@ async function fetchRemoteEnabled(): Promise<boolean> {
     throw new Error('Remote enable config must include a boolean "enabled"');
   }
 
-  return true
+  const isEnabled =
+    Bun.env.NODE_ENV && Bun.env.NODE_ENV === "development"
+      ? true
+      : data.enabled;
+
+  return isEnabled;
 }
 
 /**
@@ -54,9 +59,7 @@ export function startRemoteEnableWatcher(
       const enabled = await fetchRemoteEnabled();
 
       if (!enabled && !stopped) {
-        console.error(
-          "[remote-enable] enabled=false; locking server",
-        );
+        console.error("[remote-enable] enabled=false; locking server");
         await onDisabled();
       } else {
         console.info("[remote-enable] enabled=true");
