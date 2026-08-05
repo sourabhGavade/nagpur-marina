@@ -24,6 +24,7 @@ import {
   parseSubZoneControlRequest,
   parseZoneActivationRequest,
 } from "../utils/validation.ts";
+import { describeError } from "../utils/errors.ts";
 
 export interface ControlControllerOptions {
   emergencyBroadcastCount?: number;
@@ -253,7 +254,7 @@ export class ControlController {
     } catch (error) {
       if (this.runtime.state.isCurrent(generation)) {
         await this.runtime.enterSystemFailSafe(
-          `${mode} operation ${operationId} failed`,
+          `${mode} operation ${operationId} failed: ${describeError(error)}`,
         );
       }
       throw error;
