@@ -357,7 +357,7 @@ export class RuntimeController {
             execute_at_ms: executeAtMs,
             video_duration_ms: zone.video_duration_ms,
             video_crossfade_duration_ms: zone.video_crossfade_duration_ms,
-            loop: this.state.mode !== "area",
+            loop: this.state.mode === "subzone",
           },
           ack as SocketAck<DisplayPlaybackResult>,
         );

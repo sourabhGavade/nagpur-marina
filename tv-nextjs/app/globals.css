@@ -49,6 +49,22 @@ body {
   will-change: opacity;
 }
 
+.display-audio-unlock {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
 .display-status {
   position: absolute;
   z-index: 5;

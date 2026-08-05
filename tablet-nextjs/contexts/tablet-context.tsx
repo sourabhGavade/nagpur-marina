@@ -11,95 +11,19 @@ import {
 } from "react";
 import { io, type Socket } from "socket.io-client";
 import { v4 } from "uuid";
-
-export type LightingModel = "main-model" | "clubhouse-model";
-
-export interface SubZone {
-  element_id: string;
-  intensity: number;
-  model: LightingModel;
-  animation_duration_ms: number;
-}
-
-export interface Zone {
-  id: string;
-  sequence_order: number;
-  name: string;
-  video_url: string;
-  video_duration_ms: number;
-  video_crossfade_duration_ms: number;
-  tabletImageUrl: string;
-  subZones: SubZone[];
-}
-
-export interface Area {
-  id: number;
-  sequence_order: number;
-  name: string;
-  zones: Zone[];
-}
-
-export interface Lighting {
-  id: string;
-  name: string;
-  sequence_order: number;
-  subZones: SubZone[];
-}
-
-export interface AppConfig {
-  areas: Area[];
-  lightings: Lighting[];
-}
-
-export type ConnectionState = "idle" | "connecting" | "connected" | "error";
-
-export type CommandResult =
-  | { status: "success"; transaction_id: string }
-  | {
-      status: "error";
-      transaction_id: string;
-      error_code: string;
-      message: string;
-    };
-
-export interface RuntimeStatus {
-  mode: "idle" | "area" | "zone" | "subzone" | "lighting";
-  playback_state: "idle" | "playing" | "paused";
-  active_area_id: number | null;
-  active_zone_id: string | null;
-  active_lighting_id: string | null;
-  active_element_id: string | null;
-}
-
-interface TabletContextValue {
-  layout: AppConfig | null;
-  connectionState: ConnectionState;
-  hardwareOnline: boolean | null;
-  displayOnline: boolean | null;
-  runtimeStatus: RuntimeStatus;
-  errorMessage: string;
-  connect: () => void;
-  disconnect: () => void;
-  activateArea: (areaId: Area["id"]) => Promise<CommandResult>;
-  activateZone: (zoneId: Zone["id"]) => Promise<CommandResult>;
-  controlLighting: (
-    lightingId: Lighting["id"],
-    action: "activate" | "deactivate",
-  ) => Promise<CommandResult>;
-  pauseSequence: () => Promise<CommandResult>;
-  resumeSequence: () => Promise<CommandResult>;
-  stopSequence: () => Promise<CommandResult>;
-}
+import type {
+  AppConfig,
+  Area,
+  Zone,
+  Lighting,
+  ConnectionState,
+  RuntimeStatus,
+  TabletContextValue,
+  CommandResult,
+} from "@/lib/types";
+import { socketUrl } from "@/lib/consts";
 
 const TabletContext = createContext<TabletContextValue | null>(null);
-
-function getSocketUrl() {
-  if (process.env.NEXT_PUBLIC_SOCKET_URL) {
-    return process.env.NEXT_PUBLIC_SOCKET_URL;
-  }
-
-  return `${window.location.protocol}//${window.location.hostname}:4000`;
-}
 
 export function TabletContextProvider({ children }: { children: ReactNode }) {
   const [layout, setLayout] = useState<AppConfig | null>(null);
@@ -143,7 +67,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
     setConnectionState("connecting");
     setErrorMessage("");
 
-    const socket = io(getSocketUrl(), {
+    const socket = io(socketUrl, {
       autoConnect: false,
       transports: ["websocket"],
       auth: {

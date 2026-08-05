@@ -2,33 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-
-type PlaybackState = "idle" | "preparing" | "playing" | "paused" | "error";
-
-interface PrepareVideoPayload {
-  transaction_id: string;
-  zone_id: string;
-  video_url: string;
-}
-
-interface PlayVideoPayload {
-  transaction_id: string;
-  zone_id: string;
-  execute_at_ms: number;
-  video_duration_ms: number;
-  video_crossfade_duration_ms: number;
-  loop: boolean;
-}
-
-interface VideoControlPayload {
-  transaction_id: string;
-}
-
-const socketUrl =
-  process.env.NEXT_PUBLIC_SOCKET_URL ??
-  (typeof window === "undefined"
-    ? "http://localhost:4000"
-    : `${window.location.protocol}//${window.location.hostname}:4000`);
+import { socketUrl, idleVideoUrl } from "@/lib/consts";
+import type {
+  PlaybackState,
+  PrepareVideoPayload,
+  PlayVideoPayload,
+  VideoControlPayload,
+} from "@/lib/types";
 
 export default function DisplayPage() {
   const videoARef = useRef<HTMLVideoElement>(null);
@@ -39,11 +19,13 @@ export default function DisplayPage() {
   const playbackStateRef = useRef<PlaybackState>("idle");
   const activeZoneRef = useRef<string | null>(null);
   const startedAtRef = useRef(0);
+  const idleRequestRef = useRef(0);
+  const audioUnlockedRef = useRef(false);
 
   const [connected, setConnected] = useState(false);
   const [playbackState, setPlaybackState] = useState<PlaybackState>("idle");
-  const [activeZone, setActiveZone] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   useEffect(() => {
     const videoA = videoARef.current;
@@ -53,6 +35,29 @@ export default function DisplayPage() {
     const videos: [HTMLVideoElement, HTMLVideoElement] = [videoA, videoB];
     startedAtRef.current = Date.now();
 
+    const unlockAudio = () => {
+      if (audioUnlockedRef.current) return;
+      audioUnlockedRef.current = true;
+      setAudioUnlocked(true);
+
+      const active = videos[activeIndexRef.current];
+      if (
+        (playbackStateRef.current === "playing" ||
+          playbackStateRef.current === "idle") &&
+        active &&
+        !active.paused
+      ) {
+        active.muted = false;
+        active.volume = 1;
+      }
+    };
+
+    const onGesture = () => {
+      unlockAudio();
+    };
+    window.addEventListener("pointerdown", onGesture, { once: true });
+    window.addEventListener("keydown", onGesture, { once: true });
+
     const setRuntimeState = (
       state: PlaybackState,
       zoneId: string | null = activeZoneRef.current,
@@ -60,26 +65,97 @@ export default function DisplayPage() {
       playbackStateRef.current = state;
       activeZoneRef.current = zoneId;
       setPlaybackState(state);
-      setActiveZone(zoneId);
     };
 
-    const stopPlayback = () => {
+    const playIdleVideo = () => {
       if (playTimerRef.current) {
         clearTimeout(playTimerRef.current);
         playTimerRef.current = null;
       }
 
-      for (const video of videos) {
-        video.pause();
-        video.currentTime = 0;
-        video.style.transition = "none";
-        video.style.opacity = "0";
+      const previousIndex = activeIndexRef.current;
+      const previous = videos[previousIndex];
+      const alreadyIdle =
+        playbackStateRef.current === "idle" &&
+        previous.loop &&
+        !previous.paused &&
+        previous.currentSrc.includes(idleVideoUrl);
+
+      if (alreadyIdle) {
+        preparedIndexRef.current = null;
+        setRuntimeState("idle", null);
+        setErrorMessage("");
+        return;
       }
 
-      activeIndexRef.current = 0;
-      preparedIndexRef.current = null;
-      setRuntimeState("idle", null);
-      setErrorMessage("");
+      const requestId = ++idleRequestRef.current;
+      const hasVisibleContent =
+        previous.style.opacity !== "0" && Boolean(previous.currentSrc);
+      const idleIndex = hasVisibleContent ? (previousIndex === 0 ? 1 : 0) : 0;
+      const idle = videos[idleIndex];
+
+      idle.pause();
+      idle.loop = true;
+      idle.muted = true;
+      idle.style.transition = "none";
+      if (idle !== previous) {
+        idle.style.opacity = "0";
+      }
+
+      const finishIdle = async () => {
+        if (requestId !== idleRequestRef.current) return;
+        try {
+          idle.currentTime = 0;
+          idle.volume = 1;
+          // Browsers block unmuted play() until the user interacts once.
+          idle.muted = !audioUnlockedRef.current;
+          await idle.play();
+          if (audioUnlockedRef.current) {
+            idle.muted = false;
+          }
+          if (requestId !== idleRequestRef.current) return;
+
+          idle.style.opacity = "1";
+          if (previous !== idle) {
+            previous.style.transition = "none";
+            previous.style.opacity = "0";
+            previous.muted = true;
+            previous.pause();
+            previous.currentTime = 0;
+          }
+
+          activeIndexRef.current = idleIndex;
+          preparedIndexRef.current = null;
+          setRuntimeState("idle", null);
+          setErrorMessage("");
+        } catch (error) {
+          if (requestId !== idleRequestRef.current) return;
+          const message =
+            error instanceof Error ? error.message : "Idle video failed";
+          setRuntimeState("error");
+          setErrorMessage(message);
+        }
+      };
+
+      const onReady = () => {
+        idle.removeEventListener("error", onError);
+        void finishIdle();
+      };
+      const onError = () => {
+        idle.removeEventListener("canplay", onReady);
+        if (requestId !== idleRequestRef.current) return;
+        setRuntimeState("error");
+        setErrorMessage(`Unable to load idle video ${idleVideoUrl}`);
+      };
+
+      idle.addEventListener("canplay", onReady, { once: true });
+      idle.addEventListener("error", onError, { once: true });
+      idle.src = idleVideoUrl;
+      idle.load();
+    };
+
+    const stopPlayback = () => {
+      playIdleVideo();
     };
 
     const socket: Socket = io(socketUrl, {
@@ -129,6 +205,7 @@ export default function DisplayPage() {
           return;
         }
 
+        idleRequestRef.current += 1;
         const standbyIndex = activeIndexRef.current === 0 ? 1 : 0;
         const standby = videos[standbyIndex];
         const hasActivePlayback =
@@ -214,11 +291,18 @@ export default function DisplayPage() {
             try {
               next.currentTime = 0;
               next.loop = payload.loop;
+              next.volume = 1;
+              // Browsers block unmuted play() until the user interacts once.
+              next.muted = !audioUnlockedRef.current;
               await next.play();
+              if (audioUnlockedRef.current) {
+                next.muted = false;
+              }
 
               const duration = payload.video_crossfade_duration_ms;
               next.style.transition = `opacity ${duration}ms linear`;
               previous.style.transition = `opacity ${duration}ms linear`;
+              previous.muted = true;
               next.style.opacity = "1";
               previous.style.opacity = "0";
 
@@ -293,7 +377,13 @@ export default function DisplayPage() {
         }
 
         try {
-          await videos[activeIndexRef.current].play();
+          const active = videos[activeIndexRef.current];
+          active.volume = 1;
+          active.muted = !audioUnlockedRef.current;
+          await active.play();
+          if (audioUnlockedRef.current) {
+            active.muted = false;
+          }
           setRuntimeState("playing");
           ack({
             transaction_id: payload.transaction_id,
@@ -341,12 +431,16 @@ export default function DisplayPage() {
     };
     const heartbeat = window.setInterval(sendHeartbeat, 5_000);
 
+    playIdleVideo();
     socket.connect();
     socket.on("connect", sendHeartbeat);
 
     return () => {
+      idleRequestRef.current += 1;
       window.clearInterval(heartbeat);
       if (playTimerRef.current) clearTimeout(playTimerRef.current);
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("keydown", onGesture);
       socket.disconnect();
     };
   }, []);
@@ -368,7 +462,19 @@ export default function DisplayPage() {
         preload="auto"
       />
 
-      <div className="display-status">
+      {!audioUnlocked && (
+        <button type="button" className="display-audio-unlock">
+          Click to enable sound
+        </button>
+      )}
+
+      <div
+        className={`display-status${
+          playbackState === "playing" || playbackState === "paused"
+            ? " hidden"
+            : ""
+        }`}
+      >
         <span className={`display-dot ${connected ? "online" : ""}`} />
         <div>
           <strong>
@@ -376,18 +482,11 @@ export default function DisplayPage() {
               ? "Connecting to experience"
               : playbackState === "preparing"
                 ? "Preparing media"
-                : playbackState === "playing"
-                  ? "Playback playing"
-                  : playbackState === "paused"
-                    ? "Playback paused"
-                    : playbackState === "error"
-                      ? "Display error"
-                      : "Display ready"}
+                : playbackState === "error"
+                  ? "Display error"
+                  : "Display ready"}
           </strong>
-          <small>
-            {errorMessage ||
-              (activeZone ? `Playing ${activeZone}` : "Waiting for a command")}
-          </small>
+          <small>{errorMessage || "Idle loop playing"}</small>
         </div>
       </div>
     </main>

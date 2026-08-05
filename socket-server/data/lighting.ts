@@ -37,7 +37,7 @@ const marinaReserve: Lighting = {
   id: "marina-reserve",
   name: "Marina Reserve",
   sequence_order: 1,
-  subZones: [subZoneMainModel1, subZoneMainModel12],
+  subZones: [subZoneMainModel1],
 };
 
 const marinaEuphoria: Lighting = {
@@ -51,35 +51,28 @@ const marinaGrove: Lighting = {
   id: "marina-grove",
   name: "Marina Grove",
   sequence_order: 3,
-  subZones: [
-    subZoneMainModel3,
-    subZoneMainModel14,
-    subZoneMainModel15,
-    subZoneMainModel16,
-    subZoneMainModel17,
-    subZoneMainModel18,
-  ],
+  subZones: [subZoneMainModel3],
 };
 
 const marinaBayview: Lighting = {
   id: "marina-bayview",
   name: "Marina Bayview",
   sequence_order: 4,
-  subZones: [subZoneMainModel4, subZoneMainModel19, subZoneMainModel20],
+  subZones: [subZoneMainModel4],
 };
 
 const marinaGrand: Lighting = {
   id: "marina-grand",
   name: "Marina Grand",
   sequence_order: 5,
-  subZones: [subZoneMainModel5, subZoneMainModel21],
+  subZones: [subZoneMainModel5],
 };
 
 const marinaRiviera: Lighting = {
   id: "marina-riviera",
   name: "Marina Riviera",
   sequence_order: 6,
-  subZones: [subZoneMainModel6, subZoneMainModel22],
+  subZones: [subZoneMainModel6],
 };
 
 const activityZone: Lighting = {
