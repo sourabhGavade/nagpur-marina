@@ -1,17 +1,16 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "socket-server",
       "dependencies": {
         "socket.io": "^4.8.3",
-        "socket.io-client": "^4.8.3",
         "zod": "^4.4.3",
       },
       "devDependencies": {
         "@types/bun": "latest",
-      },
-      "peerDependencies": {
+        "socket.io-client": "^4.8.3",
         "typescript": "^7.0.2",
       },
     },
