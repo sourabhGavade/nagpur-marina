@@ -138,6 +138,10 @@ export class RuntimeController {
     heartbeat: { uptime_ms: number; status: "ready" | "error" },
     socket: AppSocket,
   ): void {
+    console.info(
+      `[heartbeat] received role=${role} client=${socket.data.client_id} uptime_ms=${heartbeat.uptime_ms} status=${heartbeat.status}`,
+    );
+
     if (role === "hardware") {
       this.state.markHardwareHeartbeat(
         socket.data.client_id,
@@ -537,8 +541,17 @@ export class RuntimeController {
 
     for (const hardware of hardwareClients) {
       hardware.emit("server-heartbeat", heartbeat);
+      console.info(
+        `[heartbeat] sent role=hardware client=${hardware.data.client_id} sent_at_ms=${heartbeat.sent_at_ms}`,
+      );
     }
-    if (display?.connected) display.emit("server-heartbeat", heartbeat);
+
+    if (display?.connected) {
+      display.emit("server-heartbeat", heartbeat);
+      console.info(
+        `[heartbeat] sent role=display client=${display.data.client_id} sent_at_ms=${heartbeat.sent_at_ms}`,
+      );
+    }
 
     const now = Date.now();
     for (const hardware of hardwareClients) {
