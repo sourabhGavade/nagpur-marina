@@ -8,7 +8,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: appRoot,
   },
-  allowedDevOrigins: ["10.22.92.110"] // Replace with your actual IP address
-};
-
+allowedDevOrigins: ['192.168.0.111'] //To be checked before deploying
+}
 export default nextConfig;
