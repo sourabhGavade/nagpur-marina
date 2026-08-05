@@ -179,7 +179,7 @@ export class ControlController {
             zone_id: null,
             lighting_id: lighting.id,
             scope: "lighting",
-            mode: "replace",
+            mode: "add",
             execute_at_ms: executeAtMs,
             lights,
           },
