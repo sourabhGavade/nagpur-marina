@@ -217,20 +217,6 @@ export const subZoneClubhouseModel7: SubZone = {
   animation_duration_ms: 500,
 };
 
-export const subZoneClubhouseModel8: SubZone = {
-  element_id: "sub_zone_8",
-  model: "clubhouse-model",
-  intensity: 1,
-  animation_duration_ms: 500,
-};
-
-export const subZoneClubhouseModel9: SubZone = {
-  element_id: "sub_zone_9",
-  model: "clubhouse-model",
-  intensity: 1,
-  animation_duration_ms: 500,
-};
-
 export const subZones: SubZone[] = [
   subZoneMainModel1,
   subZoneMainModel2,

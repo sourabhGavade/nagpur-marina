@@ -30,8 +30,6 @@ import {
   subZoneClubhouseModel5,
   subZoneClubhouseModel6,
   subZoneClubhouseModel7,
-  subZoneClubhouseModel8,
-  subZoneClubhouseModel9,
 } from "./sub-zones.ts";
 import type { Zone } from "../utils/types.ts";
 import { zoneTabletImageBaseUrl, zoneTVVideoBaseUrl } from "../lib/consts.ts";
@@ -54,8 +52,6 @@ export const whyNagpurMarina: Zone = {
     subZoneClubhouseModel4,
     subZoneClubhouseModel5,
     subZoneClubhouseModel7,
-    subZoneClubhouseModel8,
-    subZoneClubhouseModel9,
   ],
 };
 
@@ -97,8 +93,6 @@ export const masterplanReveal: Zone = {
     subZoneClubhouseModel4,
     subZoneClubhouseModel5,
     subZoneClubhouseModel6,
-    subZoneClubhouseModel8,
-    subZoneClubhouseModel9,
   ],
 };
 
@@ -134,8 +128,6 @@ export const lifestyleAnchorsIntro: Zone = {
     subZoneClubhouseModel4,
     subZoneClubhouseModel5,
     subZoneClubhouseModel6,
-    subZoneClubhouseModel8,
-    subZoneClubhouseModel9,
   ],
 };
 
@@ -154,7 +146,6 @@ export const waterfrontBeach: Zone = {
     subZoneClubhouseModel1,
     subZoneClubhouseModel6,
     subZoneClubhouseModel7,
-    subZoneClubhouseModel8,
   ],
 };
 
@@ -175,8 +166,6 @@ export const waterfrontAmenities: Zone = {
     subZoneClubhouseModel4,
     subZoneClubhouseModel5,
     subZoneClubhouseModel6,
-    subZoneClubhouseModel8,
-    subZoneClubhouseModel9,
   ],
 };
 
