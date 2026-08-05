@@ -8,6 +8,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: appRoot,
   },
-allowedDevOrigins: ['192.168.101.33']
+allowedDevOrigins: ['192.168.0.111'] //To be checked before deploying
 }
 export default nextConfig;
