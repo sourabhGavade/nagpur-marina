@@ -3,7 +3,10 @@ import {
   type AppIo,
   type AppSocket,
 } from "../lib/client-registry.ts";
-import { EXPECTED_HARDWARE_CLIENTS } from "../lib/consts.ts";
+import {
+  EXPECTED_HARDWARE_CLIENTS,
+  IDLE_HOLD_LAST_FRAME_MS,
+} from "../lib/consts.ts";
 import {
   hardwareClientsForLights,
   partitionLightsByHardwareClient,
@@ -440,6 +443,51 @@ export class RuntimeController {
     this.broadcastRuntimeStatus();
   }
 
+  /** Natural finish: preserve last area/zone; display holds last frame then idle. */
+  async finishNormally(): Promise<void> {
+    const hardwareClients = this.registry.getHardwareClients();
+    const display = this.registry.getDisplay();
+    this.state.endPlayback();
+
+    const failures: unknown[] = [];
+    const tasks: Promise<unknown>[] = [];
+
+    if (hardwareClients.length < EXPECTED_HARDWARE_CLIENTS) {
+      failures.push(new Error("hardware_offline"));
+    }
+    for (const hardware of hardwareClients) {
+      tasks.push(this.sendAllOff(hardware));
+    }
+
+    if (display?.connected) {
+      tasks.push(
+        this.stopDisplay(display, {
+          hold_last_frame_ms: IDLE_HOLD_LAST_FRAME_MS,
+        }),
+      );
+    } else {
+      failures.push(new Error("display_offline"));
+    }
+
+    const results = await Promise.allSettled(tasks);
+    failures.push(
+      ...results
+        .filter(
+          (result): result is PromiseRejectedResult =>
+            result.status === "rejected",
+        )
+        .map(({ reason }) => reason),
+    );
+
+    if (failures.length > 0) {
+      throw new AggregateError(
+        failures,
+        "Natural finish did not fully complete",
+      );
+    }
+    this.broadcastRuntimeStatus();
+  }
+
   getRuntimeStatus(): RuntimeStatus {
     return {
       mode: this.state.mode,
@@ -677,7 +725,10 @@ export class RuntimeController {
     }
   }
 
-  private async stopDisplay(socket: AppSocket): Promise<void> {
+  private async stopDisplay(
+    socket: AppSocket,
+    options: { hold_last_frame_ms?: number } = {},
+  ): Promise<void> {
     const transactionId = createTransactionId("safe-stop-video");
     const result = await requestAck({
       socket,
@@ -688,7 +739,12 @@ export class RuntimeController {
       emit: (ack) => {
         socket.emit(
           "stop-video",
-          { transaction_id: transactionId },
+          {
+            transaction_id: transactionId,
+            ...(options.hold_last_frame_ms !== undefined
+              ? { hold_last_frame_ms: options.hold_last_frame_ms }
+              : {}),
+          },
           ack as SocketAck<StopVideoResult>,
         );
       },

@@ -62,6 +62,25 @@ describe("RuntimeState", () => {
     expect(state.activeTransactionIds.size).toBe(0);
   });
 
+  test("endPlayback keeps last area and zone selection", () => {
+    const state = new RuntimeState();
+    const generation = state.generation;
+    state.mode = "area";
+    state.activeAreaId = 1;
+    state.activeZoneId = "masterplan-reveal";
+    state.activeLightingId = "some-light";
+    state.trackTransaction("transaction-1");
+
+    state.endPlayback();
+
+    expect(state.isCurrent(generation)).toBe(false);
+    expect(state.mode as string).toBe("idle");
+    expect(state.activeAreaId).toBe(1);
+    expect(state.activeZoneId).toBe("masterplan-reveal");
+    expect(state.activeLightingId).toBeNull();
+    expect(state.activeTransactionIds.size).toBe(0);
+  });
+
   test("resolves pending sequence waits as cancelled", async () => {
     const state = new RuntimeState();
     const generation = state.generation;

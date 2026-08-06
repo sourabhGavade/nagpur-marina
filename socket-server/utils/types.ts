@@ -216,6 +216,8 @@ export type DisplayPlaybackResult =
 
 export interface StopVideoPayload {
   transaction_id: string;
+  /** When set, display freezes on last frame for this many ms before idle. */
+  hold_last_frame_ms?: number;
 }
 
 export type StopVideoResult =

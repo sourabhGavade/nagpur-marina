@@ -41,10 +41,9 @@ export default function ZonesPage() {
   const zoneEntries = layout.areas.flatMap((area) =>
     area.zones.map((zone) => ({ area, zone })),
   );
-  const activeEntry =
-    runtimeStatus.playback_state !== "idle"
-      ? zoneEntries.find(({ zone }) => zone.id === runtimeStatus.active_zone_id)
-      : undefined;
+  const activeEntry = zoneEntries.find(
+    ({ zone }) => zone.id === runtimeStatus.active_zone_id,
+  );
   const selectedEntry =
     activeEntry ??
     zoneEntries.find(({ zone }) => zone.id === selectedZoneId) ??
@@ -146,8 +145,7 @@ export default function ZonesPage() {
             <div className="marina-chapters-list">
               {layout.areas.map((area) => {
                 const isActiveArea =
-                  runtimeStatus.active_area_id === area.id &&
-                  runtimeStatus.playback_state !== "idle";
+                  runtimeStatus.active_area_id === area.id;
 
                 return (
                   <section

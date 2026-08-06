@@ -14,6 +14,9 @@ export const LIGHTING_MODEL_TO_HARDWARE_CLIENT = {
 export const zoneTabletImageBaseUrl = "/zone-tablet-images";
 export const zoneTVVideoBaseUrl = "/zone-tv-videos";
 
+/** After natural finish, hold last video frame before idle loop. */
+export const IDLE_HOLD_LAST_FRAME_MS = 120_000;
+
 // ================ REMOTE ENABLEMENT CONFIG ================
 export const REMOTE_ENABLE_CONFIG_URL =
   "https://gist.githubusercontent.com/sourabhGavade/7f3e32a140551f4af1841fb666033f1f/raw/app-config.json";

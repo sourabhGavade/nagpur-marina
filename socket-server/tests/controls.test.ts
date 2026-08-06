@@ -326,7 +326,9 @@ describe("Tablet controls", () => {
   test("stops video and switches every output off", async () => {
     acknowledgeHardwareApply(hardware);
     acknowledgeHardwareApply(hardware2);
+    let stopPayload: { hold_last_frame_ms?: number } | undefined;
     display.once("stop-video", (payload, ack) => {
+      stopPayload = payload;
       ack({
         transaction_id: payload.transaction_id,
         status: "success",
@@ -334,12 +336,19 @@ describe("Tablet controls", () => {
       });
     });
 
+    server.runtime.state.mode = "zone";
+    server.runtime.state.activeAreaId = 1;
+    server.runtime.state.activeZoneId = "masterplan-reveal";
+
     const result = await new Promise<any>((resolve) => {
       tablet.emit("sequence-stop", resolve);
     });
 
     expect(result.status).toBe("success");
-    expect(server.runtime.state.mode).toBe("idle");
+    expect(server.runtime.state.mode as string).toBe("idle");
+    expect(server.runtime.state.activeZoneId).toBeNull();
+    expect(server.runtime.state.activeAreaId).toBeNull();
+    expect(stopPayload?.hold_last_frame_ms).toBeUndefined();
   });
 
   test("broadcasts emergency shutdown repeatedly to both Pis", async () => {

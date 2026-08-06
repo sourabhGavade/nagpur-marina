@@ -22,4 +22,6 @@ export interface PlayVideoPayload {
 
 export interface VideoControlPayload {
   transaction_id: string;
+  /** When set, freeze on last frame for this many ms before idle. */
+  hold_last_frame_ms?: number;
 }

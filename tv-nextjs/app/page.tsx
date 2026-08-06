@@ -16,6 +16,7 @@ export default function DisplayPage() {
   const activeIndexRef = useRef(0);
   const preparedIndexRef = useRef<number | null>(null);
   const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playbackStateRef = useRef<PlaybackState>("idle");
   const activeZoneRef = useRef<string | null>(null);
   const startedAtRef = useRef(0);
@@ -67,7 +68,15 @@ export default function DisplayPage() {
       setPlaybackState(state);
     };
 
+    const clearIdleHoldTimer = () => {
+      if (idleHoldTimerRef.current) {
+        clearTimeout(idleHoldTimerRef.current);
+        idleHoldTimerRef.current = null;
+      }
+    };
+
     const playIdleVideo = () => {
+      clearIdleHoldTimer();
       if (playTimerRef.current) {
         clearTimeout(playTimerRef.current);
         playTimerRef.current = null;
@@ -154,7 +163,28 @@ export default function DisplayPage() {
       idle.load();
     };
 
-    const stopPlayback = () => {
+    const stopPlayback = (holdLastFrameMs?: number) => {
+      if (holdLastFrameMs !== undefined && holdLastFrameMs > 0) {
+        clearIdleHoldTimer();
+        if (playTimerRef.current) {
+          clearTimeout(playTimerRef.current);
+          playTimerRef.current = null;
+        }
+
+        const active = videos[activeIndexRef.current];
+        active.pause();
+        // Leave currentTime at end so the last frame stays visible.
+        preparedIndexRef.current = null;
+        setRuntimeState("idle", null);
+        setErrorMessage("");
+
+        idleHoldTimerRef.current = setTimeout(() => {
+          idleHoldTimerRef.current = null;
+          playIdleVideo();
+        }, holdLastFrameMs);
+        return;
+      }
+
       playIdleVideo();
     };
 
@@ -206,6 +236,7 @@ export default function DisplayPage() {
         }
 
         idleRequestRef.current += 1;
+        clearIdleHoldTimer();
         const standbyIndex = activeIndexRef.current === 0 ? 1 : 0;
         const standby = videos[standbyIndex];
         const hasActivePlayback =
@@ -409,7 +440,7 @@ export default function DisplayPage() {
     socket.on(
       "stop-video",
       (payload: VideoControlPayload, ack: (result: unknown) => void) => {
-        stopPlayback();
+        stopPlayback(payload.hold_last_frame_ms);
         ack({
           transaction_id: payload.transaction_id,
           status: "success",
@@ -437,6 +468,7 @@ export default function DisplayPage() {
 
     return () => {
       idleRequestRef.current += 1;
+      clearIdleHoldTimer();
       window.clearInterval(heartbeat);
       if (playTimerRef.current) clearTimeout(playTimerRef.current);
       window.removeEventListener("pointerdown", onGesture);

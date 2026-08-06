@@ -222,6 +222,24 @@ export class RuntimeState {
     return this.generation;
   }
 
+  /** End playback but keep last active area/zone for tablet selection. */
+  endPlayback(): number {
+    this.generation += 1;
+    this.mode = "idle";
+    this.activeLightingId = null;
+    this.activeElementId = null;
+    this.paused = false;
+    this.activeTransactionIds.clear();
+
+    for (const wait of this.pendingWaits) {
+      if (wait.timer) clearTimeout(wait.timer);
+      wait.resolve(false);
+    }
+    this.pendingWaits.clear();
+
+    return this.generation;
+  }
+
   private scheduleWait(wait: PendingWait): void {
     if (
       this.paused ||

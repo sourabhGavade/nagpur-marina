@@ -141,7 +141,7 @@ export class AreaSequenceController {
     if (!shouldContinue) return;
 
     this.assertCurrent(generation);
-    await this.runtime.stopNormally();
+    await this.runtime.finishNormally();
   }
 
   private async dispatch(

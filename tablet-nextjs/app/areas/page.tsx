@@ -39,10 +39,9 @@ export default function AreasPage() {
     return <MarinaLoading label="Loading areas…" />;
   }
 
-  const activeArea =
-    runtimeStatus.playback_state !== "idle"
-      ? layout.areas.find((area) => area.id === runtimeStatus.active_area_id)
-      : undefined;
+  const activeArea = layout.areas.find(
+    (area) => area.id === runtimeStatus.active_area_id,
+  );
   const selectedArea =
     activeArea ??
     layout.areas.find((area) => area.id === selectedAreaId) ??
@@ -203,10 +202,11 @@ export default function AreasPage() {
             <div className="marina-chapters-list">
               {layout.areas.map((area) => {
                 const isCurrentArea =
-                  runtimeStatus.mode === "area" &&
                   runtimeStatus.active_area_id === area.id;
                 const isPlaying =
-                  isCurrentArea && runtimeStatus.playback_state === "playing";
+                  isCurrentArea &&
+                  runtimeStatus.mode === "area" &&
+                  runtimeStatus.playback_state === "playing";
 
                 return (
                   <section

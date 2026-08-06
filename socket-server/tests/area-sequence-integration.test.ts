@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { io as createClient, type Socket } from "socket.io-client";
 import { createSocketServer, type SocketServer } from "../lib/server.ts";
+import { IDLE_HOLD_LAST_FRAME_MS } from "../lib/consts.ts";
 import { config } from "../utils/config.ts";
 
 async function waitUntil(
@@ -23,6 +24,10 @@ describe("continuous Area sequence", () => {
   const clients: Socket[] = [];
   const appliedZones: string[] = [];
   const executionTimes: number[] = [];
+  const stopPayloads: Array<{
+    transaction_id: string;
+    hold_last_frame_ms?: number;
+  }> = [];
 
   beforeEach(async () => {
     const shortConfig = structuredClone(config);
@@ -110,6 +115,7 @@ describe("continuous Area sequence", () => {
       });
     });
     display.on("stop-video", (payload, ack) => {
+      stopPayloads.push(payload);
       ack({
         transaction_id: payload.transaction_id,
         status: "success",
@@ -133,6 +139,7 @@ describe("continuous Area sequence", () => {
     await server.close();
     appliedZones.length = 0;
     executionTimes.length = 0;
+    stopPayloads.length = 0;
     clients.length = 0;
   });
 
@@ -182,7 +189,11 @@ describe("continuous Area sequence", () => {
     expect(server.runtime.state.activeZoneId).toBe("masterplan-reveal");
 
     await waitUntil(() => server.runtime.state.mode === "idle", 1_500);
-    expect(server.runtime.state.activeZoneId).toBeNull();
+    expect(server.runtime.state.activeAreaId).toBe(1);
+    expect(server.runtime.state.activeZoneId).toBe("masterplan-reveal");
+    expect(stopPayloads.at(-1)?.hold_last_frame_ms).toBe(
+      IDLE_HOLD_LAST_FRAME_MS,
+    );
     expect(appliedZones).not.toContain("lifestyle-anchors-intro");
   });
 
@@ -231,7 +242,10 @@ describe("continuous Area sequence", () => {
     expect(loopFlag).toBe(false);
 
     await waitUntil(() => server.runtime.state.mode === "idle", 1_500);
-    expect(server.runtime.state.activeZoneId).toBeNull();
+    expect(server.runtime.state.activeZoneId).toBe("why-nagpur-marina");
+    expect(stopPayloads.at(-1)?.hold_last_frame_ms).toBe(
+      IDLE_HOLD_LAST_FRAME_MS,
+    );
   });
 
   test("rejects Zone activation while an Area sequence is playing", async () => {
