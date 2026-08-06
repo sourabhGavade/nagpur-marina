@@ -10,7 +10,7 @@ type Screen = "splash" | "idle";
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("splash");
-  const { connect, connectionState, errorMessage, layout } = useTabletContext();
+  const { connect, connectionState, layout } = useTabletContext();
   const router = useRouter();
   const reduceMotion = useReducedMotion();
 
@@ -155,7 +155,9 @@ export default function Home() {
                   </span>
                 )}
                 {connectionState === "error" && (
-                  <span className="text-[#ff8f84]">{errorMessage}</span>
+                  <span className="text-[#ff8f84]">
+                    Error connecting to the experience
+                  </span>
                 )}
               </div>
             </motion.div>
