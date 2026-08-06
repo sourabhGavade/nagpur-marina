@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { DeviceStatuses } from "@/components/device-statuses";
 import { MarinaLoading } from "@/components/marina-loading";
 import { useTabletContext } from "@/contexts/tablet-context";
+import { useGoHome } from "@/hooks/use-go-home";
 import type { Lighting, LightingModel } from "@/lib/types";
 import { MODEL_LABELS } from "@/lib/consts";
 
@@ -24,6 +25,7 @@ export default function LightingPage() {
     useTabletContext();
   const reduceMotion = useReducedMotion();
   const router = useRouter();
+  const goHome = useGoHome();
   const [onById, setOnById] = useState<Record<string, boolean>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -140,7 +142,7 @@ export default function LightingPage() {
           <button
             type="button"
             className="marina-logo-button"
-            onClick={() => router.push("/journey")}
+            onClick={() => void goHome()}
             aria-label="Back to main menu"
           >
             <Image

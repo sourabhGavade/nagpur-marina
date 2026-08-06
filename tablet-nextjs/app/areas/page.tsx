@@ -9,6 +9,7 @@ import { DeviceStatuses } from "@/components/device-statuses";
 import { MarinaLoading } from "@/components/marina-loading";
 import { PlaybackControls } from "@/components/playback-controls";
 import { useTabletContext } from "@/contexts/tablet-context";
+import { useGoHome } from "@/hooks/use-go-home";
 import type { ActionState } from "@/lib/types";
 
 export default function AreasPage() {
@@ -26,6 +27,7 @@ export default function AreasPage() {
   const [statusMessage, setStatusMessage] = useState("");
   const reduceMotion = useReducedMotion();
   const router = useRouter();
+  const goHome = useGoHome();
 
   useEffect(() => {
     if (!layout || connectionState !== "connected") {
@@ -179,7 +181,7 @@ export default function AreasPage() {
           <button
             type="button"
             className="marina-logo-button"
-            onClick={() => router.push("/journey")}
+            onClick={() => void goHome()}
             aria-label="Back to main menu"
           >
             <Image

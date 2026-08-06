@@ -470,8 +470,11 @@ export default function DisplayPage() {
 
       <div
         className={`display-status${
-          playbackState === "playing" || playbackState === "paused"
-            ? " hidden"
+          connected &&
+          (playbackState === "playing" ||
+            playbackState === "paused" ||
+            playbackState === "idle")
+            ? "hidden"
             : ""
         }`}
       >
