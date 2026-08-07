@@ -18,7 +18,6 @@ export default function AreasPage() {
     connectionState,
     runtimeStatus,
     activateArea,
-    activateZone,
     pauseSequence,
     resumeSequence,
   } = useTabletContext();
@@ -83,41 +82,6 @@ export default function AreasPage() {
       setActionState("error");
       setStatusMessage("");
       toast.error("Unable to control area", {
-        description: result.message,
-      });
-    }
-  }
-
-  async function controlZone(zoneId: string) {
-    const isCurrentZone = runtimeStatus.active_zone_id === zoneId;
-
-    setActionState("starting");
-    setStatusMessage(
-      isCurrentZone && runtimeStatus.playback_state === "playing"
-        ? "Pausing zone…"
-        : isCurrentZone && runtimeStatus.playback_state === "paused"
-          ? "Resuming zone…"
-          : "Starting zone…",
-    );
-
-    const result =
-      isCurrentZone && runtimeStatus.playback_state === "playing"
-        ? await pauseSequence()
-        : isCurrentZone && runtimeStatus.playback_state === "paused"
-          ? await resumeSequence()
-          : await activateZone(zoneId);
-
-    if (result.status === "success") {
-      setActionState("playing");
-      setStatusMessage(
-        isCurrentZone && runtimeStatus.playback_state === "playing"
-          ? "Zone paused"
-          : "Zone is playing",
-      );
-    } else {
-      setActionState("error");
-      setStatusMessage("");
-      toast.error("Unable to control zone", {
         description: result.message,
       });
     }
@@ -247,8 +211,6 @@ export default function AreasPage() {
                         const status = zoneStatus(area.id, zone.id, zoneIndex);
                         const isCurrentZone =
                           runtimeStatus.active_zone_id === zone.id;
-                        const areaSequenceActive =
-                          runtimeStatus.mode === "area";
 
                         return (
                           <li
@@ -263,15 +225,7 @@ export default function AreasPage() {
                           >
                             <button
                               type="button"
-                              onClick={() => {
-                                setSelectedAreaId(area.id);
-                                if (!areaSequenceActive) {
-                                  void controlZone(zone.id);
-                                }
-                              }}
-                              disabled={
-                                actionState === "starting" || areaSequenceActive
-                              }
+                              onClick={() => setSelectedAreaId(area.id)}
                             >
                               <span>{zone.name}</span>
                               {status ? <small>{status}</small> : null}
