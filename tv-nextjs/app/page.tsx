@@ -2,11 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import {
-  socketUrl,
-  idleVideoUrl,
-  idleCrossfadeDurationMs,
-} from "@/lib/consts";
+import { socketUrl, idleVideoUrl, idleCrossfadeDurationMs } from "@/lib/consts";
 import type {
   PlaybackState,
   PrepareVideoPayload,
@@ -26,6 +22,7 @@ export default function DisplayPage() {
   const startedAtRef = useRef(0);
   const idleRequestRef = useRef(0);
   const audioUnlockedRef = useRef(false);
+  const userMutedRef = useRef(false);
 
   const [connected, setConnected] = useState(false);
   const [playbackState, setPlaybackState] = useState<PlaybackState>("idle");
@@ -40,6 +37,14 @@ export default function DisplayPage() {
     const videos: [HTMLVideoElement, HTMLVideoElement] = [videoA, videoB];
     startedAtRef.current = Date.now();
 
+    const effectiveMuted = () =>
+      !audioUnlockedRef.current || userMutedRef.current;
+
+    const applyActiveMute = (video: HTMLVideoElement) => {
+      video.volume = 1;
+      video.muted = effectiveMuted();
+    };
+
     const unlockAudio = () => {
       if (audioUnlockedRef.current) return;
       audioUnlockedRef.current = true;
@@ -52,8 +57,7 @@ export default function DisplayPage() {
         active &&
         !active.paused
       ) {
-        active.muted = false;
-        active.volume = 1;
+        applyActiveMute(active);
       }
     };
 
@@ -119,13 +123,9 @@ export default function DisplayPage() {
         if (requestId !== idleRequestRef.current) return;
         try {
           idle.currentTime = 0;
-          idle.volume = 1;
-          // Browsers block unmuted play() until the user interacts once.
-          idle.muted = !audioUnlockedRef.current;
+          applyActiveMute(idle);
           await idle.play();
-          if (audioUnlockedRef.current) {
-            idle.muted = false;
-          }
+          applyActiveMute(idle);
           if (requestId !== idleRequestRef.current) return;
 
           const duration = idleCrossfadeDurationMs;
@@ -207,21 +207,25 @@ export default function DisplayPage() {
       reconnection: true,
     });
 
+    // Handle the connection event.
     socket.on("connect", () => {
       setConnected(true);
       setErrorMessage("");
     });
 
+    // Handle the disconnect event.
     socket.on("disconnect", () => {
       setConnected(false);
       stopPlayback();
     });
 
+    // Handle the connect error event.
     socket.on("connect_error", (error) => {
       setConnected(false);
       setErrorMessage(error.message || "Unable to connect to server");
     });
 
+    // Check the display readiness.
     socket.on("display-readiness-check", (payload, ack) => {
       ack({
         transaction_id: payload.transaction_id,
@@ -230,6 +234,7 @@ export default function DisplayPage() {
       });
     });
 
+    // Prepare the video.
     socket.on(
       "prepare-video",
       (payload: PrepareVideoPayload, ack: (result: unknown) => void) => {
@@ -295,6 +300,7 @@ export default function DisplayPage() {
       },
     );
 
+    // Play the video.
     socket.on(
       "play-video-transition",
       (payload: PlayVideoPayload, ack: (result: unknown) => void) => {
@@ -331,13 +337,9 @@ export default function DisplayPage() {
             try {
               next.currentTime = 0;
               next.loop = payload.loop;
-              next.volume = 1;
-              // Browsers block unmuted play() until the user interacts once.
-              next.muted = !audioUnlockedRef.current;
+              applyActiveMute(next);
               await next.play();
-              if (audioUnlockedRef.current) {
-                next.muted = false;
-              }
+              applyActiveMute(next);
 
               const duration = payload.video_crossfade_duration_ms;
               next.style.transition = `opacity ${duration}ms linear`;
@@ -378,6 +380,7 @@ export default function DisplayPage() {
       },
     );
 
+    // Pause the video.
     socket.on(
       "pause-video",
       (payload: VideoControlPayload, ack: (result: unknown) => void) => {
@@ -402,6 +405,7 @@ export default function DisplayPage() {
       },
     );
 
+    // Resume the video.
     socket.on(
       "resume-video",
       async (payload: VideoControlPayload, ack: (result: unknown) => void) => {
@@ -418,12 +422,9 @@ export default function DisplayPage() {
 
         try {
           const active = videos[activeIndexRef.current];
-          active.volume = 1;
-          active.muted = !audioUnlockedRef.current;
+          applyActiveMute(active);
           await active.play();
-          if (audioUnlockedRef.current) {
-            active.muted = false;
-          }
+          applyActiveMute(active);
           setRuntimeState("playing");
           ack({
             transaction_id: payload.transaction_id,
@@ -446,6 +447,35 @@ export default function DisplayPage() {
       },
     );
 
+    // Mute the video.
+    socket.on(
+      "mute-video",
+      (payload: VideoControlPayload, ack: (result: unknown) => void) => {
+        userMutedRef.current = true;
+        applyActiveMute(videos[activeIndexRef.current]);
+        ack({
+          transaction_id: payload.transaction_id,
+          status: "success",
+          muted_at_ms: Date.now(),
+        });
+      },
+    );
+
+    // Unmute the video.
+    socket.on(
+      "unmute-video",
+      (payload: VideoControlPayload, ack: (result: unknown) => void) => {
+        userMutedRef.current = false;
+        applyActiveMute(videos[activeIndexRef.current]);
+        ack({
+          transaction_id: payload.transaction_id,
+          status: "success",
+          unmuted_at_ms: Date.now(),
+        });
+      },
+    );
+
+    // Stop the video.
     socket.on(
       "stop-video",
       (payload: VideoControlPayload, ack: (result: unknown) => void) => {
@@ -458,6 +488,7 @@ export default function DisplayPage() {
       },
     );
 
+    // Send a heartbeat to the server.
     const sendHeartbeat = () => {
       if (!socket.connected) return;
       socket.emit("display-heartbeat", {
@@ -469,19 +500,28 @@ export default function DisplayPage() {
         sent_at_ms: Date.now(),
       });
     };
+
+    // Start the heartbeat interval.
     const heartbeat = window.setInterval(sendHeartbeat, 5_000);
 
+    // Play the idle video.
     playIdleVideo();
+
+    // Connect to the server.
     socket.connect();
     socket.on("connect", sendHeartbeat);
 
     return () => {
+      // Increment the idle request counter to prevent the idle video from playing.
       idleRequestRef.current += 1;
       clearIdleHoldTimer();
       window.clearInterval(heartbeat);
+      // Clear the play timer.
       if (playTimerRef.current) clearTimeout(playTimerRef.current);
+      // Remove the gesture listeners.
       window.removeEventListener("pointerdown", onGesture);
       window.removeEventListener("keydown", onGesture);
+      // Disconnect from the server.
       socket.disconnect();
     };
   }, []);

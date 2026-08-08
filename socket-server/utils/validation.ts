@@ -327,6 +327,36 @@ export const ResumeVideoResultSchema = z.discriminatedUnion("status", [
   }),
 ]);
 
+export const MuteVideoResultSchema = z.discriminatedUnion("status", [
+  z.object({
+    transaction_id: nonEmptyStringSchema,
+    status: z.literal("success"),
+    muted_at_ms: durationSchema,
+  }),
+  z.object({
+    transaction_id: nonEmptyStringSchema,
+    status: z.literal("error"),
+    error_code: z.literal("display_error"),
+    message: nonEmptyStringSchema,
+    failed_at_ms: durationSchema,
+  }),
+]);
+
+export const UnmuteVideoResultSchema = z.discriminatedUnion("status", [
+  z.object({
+    transaction_id: nonEmptyStringSchema,
+    status: z.literal("success"),
+    unmuted_at_ms: durationSchema,
+  }),
+  z.object({
+    transaction_id: nonEmptyStringSchema,
+    status: z.literal("error"),
+    error_code: z.literal("display_error"),
+    message: nonEmptyStringSchema,
+    failed_at_ms: durationSchema,
+  }),
+]);
+
 export const validateConfig = (value: unknown): AppConfig =>
   AppConfigSchema.parse(value);
 

@@ -18,6 +18,7 @@ import type {
   DisplayPlaybackResult,
   HardwareApplyStatePayload,
   HardwareApplyResult,
+  MuteVideoResult,
   PauseVideoResult,
   PrepareVideoResult,
   ReadinessResult,
@@ -25,16 +26,19 @@ import type {
   RuntimeStatus,
   SocketAck,
   StopVideoResult,
+  UnmuteVideoResult,
   Zone,
 } from "../utils/types.ts";
 import {
   DisplayPlaybackResultSchema,
   HardwareApplyResultSchema,
+  MuteVideoResultSchema,
   PauseVideoResultSchema,
   PrepareVideoResultSchema,
   ReadinessResultSchema,
   ResumeVideoResultSchema,
   StopVideoResultSchema,
+  UnmuteVideoResultSchema,
 } from "../utils/validation.ts";
 
 const TABLET_ROOM = "role:tablet";
@@ -73,6 +77,7 @@ export class RuntimeController {
   private readonly failuresInFlight = new Set<FlightKey>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private running = false;
+  private muted = false;
 
   constructor(
     private readonly io: AppIo,
@@ -415,6 +420,26 @@ export class RuntimeController {
     this.broadcastRuntimeStatus();
   }
 
+  async muteNormally(): Promise<void> {
+    this.requireSystemOnline();
+    const display = this.registry.getDisplay();
+    if (!display?.connected) throw new Error("display_offline");
+
+    await this.muteDisplay(display);
+    this.muted = true;
+    this.broadcastRuntimeStatus();
+  }
+
+  async unmuteNormally(): Promise<void> {
+    this.requireSystemOnline();
+    const display = this.registry.getDisplay();
+    if (!display?.connected) throw new Error("display_offline");
+
+    await this.unmuteDisplay(display);
+    this.muted = false;
+    this.broadcastRuntimeStatus();
+  }
+
   async stopNormally(): Promise<void> {
     const hardwareClients = this.registry.getHardwareClients();
     const display = this.registry.getDisplay();
@@ -503,6 +528,7 @@ export class RuntimeController {
           : this.state.paused
             ? "paused"
             : "playing",
+      muted: this.muted,
       active_area_id: this.state.activeAreaId,
       active_zone_id: this.state.activeZoneId,
       active_lighting_id: this.state.activeLightingId,
@@ -808,6 +834,56 @@ export class RuntimeController {
 
     if (result.transaction_id !== transactionId) {
       throw new Error("Display resume ACK transaction_id does not match");
+    }
+    if (result.status === "error") {
+      throw new Error(`${result.error_code}: ${result.message}`);
+    }
+  }
+
+  private async muteDisplay(socket: AppSocket): Promise<void> {
+    const transactionId = createTransactionId("mute-video");
+    const result = await requestAck({
+      socket,
+      runtime: this.state,
+      transactionId,
+      timeoutMs: this.safeCommandTimeoutMs,
+      schema: MuteVideoResultSchema,
+      emit: (ack) => {
+        socket.emit(
+          "mute-video",
+          { transaction_id: transactionId },
+          ack as SocketAck<MuteVideoResult>,
+        );
+      },
+    });
+
+    if (result.transaction_id !== transactionId) {
+      throw new Error("Display mute ACK transaction_id does not match");
+    }
+    if (result.status === "error") {
+      throw new Error(`${result.error_code}: ${result.message}`);
+    }
+  }
+
+  private async unmuteDisplay(socket: AppSocket): Promise<void> {
+    const transactionId = createTransactionId("unmute-video");
+    const result = await requestAck({
+      socket,
+      runtime: this.state,
+      transactionId,
+      timeoutMs: this.safeCommandTimeoutMs,
+      schema: UnmuteVideoResultSchema,
+      emit: (ack) => {
+        socket.emit(
+          "unmute-video",
+          { transaction_id: transactionId },
+          ack as SocketAck<UnmuteVideoResult>,
+        );
+      },
+    });
+
+    if (result.transaction_id !== transactionId) {
+      throw new Error("Display unmute ACK transaction_id does not match");
     }
     if (result.status === "error") {
       throw new Error(`${result.error_code}: ${result.message}`);

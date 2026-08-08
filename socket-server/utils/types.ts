@@ -270,6 +270,42 @@ export type ResumeVideoResult =
       failed_at_ms: number;
     };
 
+export interface MuteVideoPayload {
+  transaction_id: string;
+}
+
+export type MuteVideoResult =
+  | {
+      transaction_id: string;
+      status: "success";
+      muted_at_ms: number;
+    }
+  | {
+      transaction_id: string;
+      status: "error";
+      error_code: "display_error";
+      message: string;
+      failed_at_ms: number;
+    };
+
+export interface UnmuteVideoPayload {
+  transaction_id: string;
+}
+
+export type UnmuteVideoResult =
+  | {
+      transaction_id: string;
+      status: "success";
+      unmuted_at_ms: number;
+    }
+  | {
+      transaction_id: string;
+      status: "error";
+      error_code: "display_error";
+      message: string;
+      failed_at_ms: number;
+    };
+
 export interface ServerHeartbeat {
   sent_at_ms: number;
 }
@@ -302,6 +338,7 @@ export type RuntimePlaybackState = "idle" | "playing" | "paused";
 export interface RuntimeStatus {
   mode: RuntimeMode;
   playback_state: RuntimePlaybackState;
+  muted: boolean;
   active_area_id: Area["id"] | null;
   active_zone_id: Zone["id"] | null;
   active_lighting_id: Lighting["id"] | null;
@@ -347,6 +384,8 @@ export interface TabletToServerEvents {
   ) => void;
   "sequence-pause": (ack: SocketAck<CommandResult>) => void;
   "sequence-resume": (ack: SocketAck<CommandResult>) => void;
+  "sequence-mute": (ack: SocketAck<CommandResult>) => void;
+  "sequence-unmute": (ack: SocketAck<CommandResult>) => void;
   "sequence-stop": (ack: SocketAck<CommandResult>) => void;
   "global-emergency-stop": () => void;
 }
@@ -400,6 +439,14 @@ export interface ServerToDisplayEvents {
   "resume-video": (
     payload: ResumeVideoPayload,
     ack: SocketAck<ResumeVideoResult>,
+  ) => void;
+  "mute-video": (
+    payload: MuteVideoPayload,
+    ack: SocketAck<MuteVideoResult>,
+  ) => void;
+  "unmute-video": (
+    payload: UnmuteVideoPayload,
+    ack: SocketAck<UnmuteVideoResult>,
   ) => void;
   "server-heartbeat": (payload: ServerHeartbeat) => void;
 }

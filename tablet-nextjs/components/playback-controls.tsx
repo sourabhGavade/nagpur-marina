@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useTabletContext } from "../contexts/tablet-context";
+import { VolumeOff, Volume2 } from "lucide-react";
 
 interface PlaybackControlsProps {
   onPlay: () => Promise<void>;
@@ -21,12 +22,17 @@ export function PlaybackControls({
     runtimeStatus,
     pauseSequence,
     resumeSequence,
+    muteSequence,
+    unmuteSequence,
     stopSequence,
   } = useTabletContext();
   const [commandPending, setCommandPending] = useState(false);
 
   const playbackState = runtimeStatus.playback_state;
+  const muted = runtimeStatus.muted;
   const disabled = busy || commandPending;
+  const canControlAudio =
+    playbackState === "playing" || playbackState === "paused";
   const displayedStatus = busy
     ? statusMessage
     : playbackState === "playing"
@@ -67,6 +73,14 @@ export function PlaybackControls({
     setCommandPending(false);
   }
 
+  async function handleMuteToggle() {
+    if (muted) {
+      await runCommand(unmuteSequence, "Unable to unmute video");
+      return;
+    }
+    await runCommand(muteSequence, "Unable to mute video");
+  }
+
   async function handleStop() {
     await runCommand(stopSequence, "Unable to stop sequence");
   }
@@ -82,9 +96,7 @@ export function PlaybackControls({
           disabled={disabled}
         >
           <i
-            className={
-              playbackState === "playing" ? "pause-icon" : "play-icon"
-            }
+            className={playbackState === "playing" ? "pause-icon" : "play-icon"}
             aria-hidden="true"
           />
           {commandPending
@@ -96,6 +108,16 @@ export function PlaybackControls({
                 : "Play"}
         </button>
       )}
+      <button
+        type="button"
+        className="mute-button"
+        onClick={handleMuteToggle}
+        disabled={disabled || !canControlAudio}
+        aria-pressed={muted}
+      >
+        {muted ? <VolumeOff size={16} stroke="red"/> : <Volume2 size={16} stroke="green"/>}
+        {muted ? "Unmute" : "Mute"}
+      </button>
       <button
         type="button"
         className="stop-button"

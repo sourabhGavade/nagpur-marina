@@ -34,6 +34,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus>({
     mode: "idle",
     playback_state: "idle",
+    muted: false,
     active_area_id: null,
     active_zone_id: null,
     active_lighting_id: null,
@@ -51,6 +52,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
     setRuntimeStatus({
       mode: "idle",
       playback_state: "idle",
+      muted: false,
       active_area_id: null,
       active_zone_id: null,
       active_lighting_id: null,
@@ -87,6 +89,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
       setRuntimeStatus({
         mode: "idle",
         playback_state: "idle",
+        muted: false,
         active_area_id: null,
         active_zone_id: null,
         active_lighting_id: null,
@@ -121,6 +124,8 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         | "lighting-control"
         | "sequence-pause"
         | "sequence-resume"
+        | "sequence-mute"
+        | "sequence-unmute"
         | "sequence-stop",
       payload?:
         | { area_id: Area["id"] }
@@ -172,6 +177,16 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        if (event === "sequence-mute") {
+          socket.emit("sequence-mute", resolve);
+          return;
+        }
+
+        if (event === "sequence-unmute") {
+          socket.emit("sequence-unmute", resolve);
+          return;
+        }
+
         socket.emit("sequence-stop", resolve);
       }),
     [],
@@ -211,6 +226,16 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
     [emitCommand],
   );
 
+  const muteSequence = useCallback(
+    () => emitCommand("sequence-mute"),
+    [emitCommand],
+  );
+
+  const unmuteSequence = useCallback(
+    () => emitCommand("sequence-unmute"),
+    [emitCommand],
+  );
+
   useEffect(() => {
     return () => {
       socketRef.current?.disconnect();
@@ -233,6 +258,8 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         controlLighting,
         pauseSequence,
         resumeSequence,
+        muteSequence,
+        unmuteSequence,
         stopSequence,
       }}
     >

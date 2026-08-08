@@ -68,6 +68,12 @@ export class ControlController {
     socket.on("sequence-resume", (ack) => {
       void this.handleSequenceResume(ack);
     });
+    socket.on("sequence-mute", (ack) => {
+      void this.handleSequenceMute(ack);
+    });
+    socket.on("sequence-unmute", (ack) => {
+      void this.handleSequenceUnmute(ack);
+    });
     socket.on("global-emergency-stop", () => {
       this.handleEmergencyStop();
     });
@@ -314,6 +320,34 @@ export class ControlController {
 
     try {
       await this.runtime.resumeNormally();
+      reply({ status: "success", transaction_id: operationId });
+    } catch (error) {
+      reply(this.toCommandError(operationId, error));
+    }
+  }
+
+  private async handleSequenceMute(
+    ack: SocketAck<CommandResult>,
+  ): Promise<void> {
+    const operationId = createTransactionId("mute");
+    const reply = this.once(ack);
+
+    try {
+      await this.runtime.muteNormally();
+      reply({ status: "success", transaction_id: operationId });
+    } catch (error) {
+      reply(this.toCommandError(operationId, error));
+    }
+  }
+
+  private async handleSequenceUnmute(
+    ack: SocketAck<CommandResult>,
+  ): Promise<void> {
+    const operationId = createTransactionId("unmute");
+    const reply = this.once(ack);
+
+    try {
+      await this.runtime.unmuteNormally();
       reply({ status: "success", transaction_id: operationId });
     } catch (error) {
       reply(this.toCommandError(operationId, error));

@@ -28,8 +28,16 @@ describe("continuous Area sequence", () => {
     transaction_id: string;
     hold_last_frame_ms?: number;
   }> = [];
+  const muteEvents: string[] = [];
+  let latestRuntimeStatus: { muted?: boolean } | null = null;
 
   beforeEach(async () => {
+    appliedZones.length = 0;
+    executionTimes.length = 0;
+    stopPayloads.length = 0;
+    muteEvents.length = 0;
+    latestRuntimeStatus = null;
+
     const shortConfig = structuredClone(config);
     for (const area of shortConfig.areas) {
       for (const zone of area.zones) {
@@ -114,14 +122,34 @@ describe("continuous Area sequence", () => {
         resumed_at_ms: Date.now(),
       });
     });
+    display.on("mute-video", (payload, ack) => {
+      muteEvents.push("mute-video");
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        muted_at_ms: Date.now(),
+      });
+    });
+    display.on("unmute-video", (payload, ack) => {
+      muteEvents.push("unmute-video");
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        unmuted_at_ms: Date.now(),
+      });
+    });
     display.on("stop-video", (payload, ack) => {
       stopPayloads.push(payload);
+      console.log("STOP_DBG", JSON.stringify(payload));
       ack({
         transaction_id: payload.transaction_id,
         status: "success",
         stopped_at_ms: Date.now(),
       });
     });
+    // tablet.on("runtime-status", (status) => {
+    //   latestRuntimeStatus = status;
+    // });
 
     tablet.connect();
     hardware.connect();
@@ -140,6 +168,8 @@ describe("continuous Area sequence", () => {
     appliedZones.length = 0;
     executionTimes.length = 0;
     stopPayloads.length = 0;
+    muteEvents.length = 0;
+    latestRuntimeStatus = null;
     clients.length = 0;
   });
 
@@ -267,5 +297,34 @@ describe("continuous Area sequence", () => {
     expect(zoneResult.message).toContain("Area sequence");
     expect(server.runtime.state.mode).toBe("area");
     expect(appliedZones).not.toContain("lifestyle-anchors-intro");
+  });
+
+  test("mutes and unmutes display audio without stopping playback", async () => {
+    const startResult = await new Promise<any>((resolve) => {
+      tablet.emit(
+        "zone-activation",
+        { zone_id: "why-nagpur-marina" },
+        resolve,
+      );
+    });
+    expect(startResult.status).toBe("success");
+    await waitUntil(() => server.runtime.state.mode === "zone");
+
+    const muteResult = await new Promise<any>((resolve) => {
+      tablet.emit("sequence-mute", resolve);
+    });
+    expect(muteResult.status).toBe("success");
+    expect(muteEvents).toContain("mute-video");
+    expect(server.runtime.getRuntimeStatus().muted).toBe(true);
+    await waitUntil(() => latestRuntimeStatus?.muted === true);
+
+    const unmuteResult = await new Promise<any>((resolve) => {
+      tablet.emit("sequence-unmute", resolve);
+    });
+    expect(unmuteResult.status).toBe("success");
+    expect(muteEvents).toContain("unmute-video");
+    expect(server.runtime.getRuntimeStatus().muted).toBe(false);
+    await waitUntil(() => latestRuntimeStatus?.muted === false);
+    expect(server.runtime.state.mode).toBe("zone");
   });
 });

@@ -58,6 +58,7 @@ export type CommandResult =
 export interface RuntimeStatus {
   mode: "idle" | "area" | "zone" | "subzone" | "lighting";
   playback_state: "idle" | "playing" | "paused";
+  muted: boolean;
   active_area_id: number | null;
   active_zone_id: string | null;
   active_lighting_id: string | null;
@@ -81,5 +82,7 @@ export interface TabletContextValue {
   ) => Promise<CommandResult>;
   pauseSequence: () => Promise<CommandResult>;
   resumeSequence: () => Promise<CommandResult>;
+  muteSequence: () => Promise<CommandResult>;
+  unmuteSequence: () => Promise<CommandResult>;
   stopSequence: () => Promise<CommandResult>;
 }
