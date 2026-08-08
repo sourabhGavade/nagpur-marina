@@ -164,6 +164,8 @@ export function createSocketServer(
         runtime.onNodeDisconnected("hardware", client_id);
       } else if (role === "display") {
         runtime.onNodeDisconnected("display", client_id);
+      } else if (role === "tablet") {
+        runtime.onTabletDisconnected();
       }
 
       console.info(

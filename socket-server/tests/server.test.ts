@@ -302,4 +302,94 @@ describe("Socket.IO server foundation", () => {
     await Bun.sleep(10);
     expect(server.runtime.state.mode).toBe("idle");
   });
+
+  test("switches hardware off when the last tablet disconnects", async () => {
+    const [hardware, hardware2] = connectHardwarePair(client);
+    const hardwareConnected = once(hardware, "connect");
+    const hardware2Connected = once(hardware2, "connect");
+    hardware.connect();
+    hardware2.connect();
+    await Promise.all([hardwareConnected, hardware2Connected]);
+
+    const safeOff = new Promise<{ lights: unknown[] }>((resolve) => {
+      hardware.once(
+        "hardware-apply-state",
+        (
+          payload: { transaction_id: string; lights: unknown[] },
+          ack: (result: unknown) => void,
+        ) => {
+          ack({
+            transaction_id: payload.transaction_id,
+            status: "success",
+            applied_at_ms: Date.now(),
+          });
+          resolve(payload);
+        },
+      );
+    });
+    hardware2.on(
+      "hardware-apply-state",
+      (
+        payload: { transaction_id: string },
+        ack: (result: unknown) => void,
+      ) => {
+        ack({
+          transaction_id: payload.transaction_id,
+          status: "success",
+          applied_at_ms: Date.now(),
+        });
+      },
+    );
+
+    const tablet = client({ role: "tablet", client_id: "tablet-1" });
+    const tabletConnected = once(tablet, "connect");
+    tablet.connect();
+    await tabletConnected;
+    tablet.disconnect();
+
+    expect((await safeOff).lights).toEqual([]);
+    await Bun.sleep(10);
+    expect(server.runtime.state.mode).toBe("idle");
+  });
+
+  test("keeps hardware on when another tablet remains connected", async () => {
+    const [hardware, hardware2] = connectHardwarePair(client);
+    const hardwareConnected = once(hardware, "connect");
+    const hardware2Connected = once(hardware2, "connect");
+    hardware.connect();
+    hardware2.connect();
+    await Promise.all([hardwareConnected, hardware2Connected]);
+
+    let applyStateCount = 0;
+    for (const pi of [hardware, hardware2]) {
+      pi.on(
+        "hardware-apply-state",
+        (
+          payload: { transaction_id: string },
+          ack: (result: unknown) => void,
+        ) => {
+          applyStateCount += 1;
+          ack({
+            transaction_id: payload.transaction_id,
+            status: "success",
+            applied_at_ms: Date.now(),
+          });
+        },
+      );
+    }
+
+    const tabletA = client({ role: "tablet", client_id: "tablet-a" });
+    const tabletB = client({ role: "tablet", client_id: "tablet-b" });
+    const tabletAConnected = once(tabletA, "connect");
+    const tabletBConnected = once(tabletB, "connect");
+    tabletA.connect();
+    tabletB.connect();
+    await Promise.all([tabletAConnected, tabletBConnected]);
+
+    tabletA.disconnect();
+    await Bun.sleep(50);
+
+    expect(applyStateCount).toBe(0);
+    expect(server.registry.tabletCount).toBe(1);
+  });
 });

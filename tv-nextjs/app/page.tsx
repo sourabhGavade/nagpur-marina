@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import { socketUrl, idleVideoUrl } from "@/lib/consts";
+import {
+  socketUrl,
+  idleVideoUrl,
+  idleCrossfadeDurationMs,
+} from "@/lib/consts";
 import type {
   PlaybackState,
   PrepareVideoPayload,
@@ -124,14 +128,19 @@ export default function DisplayPage() {
           }
           if (requestId !== idleRequestRef.current) return;
 
-          idle.style.opacity = "1";
+          const duration = idleCrossfadeDurationMs;
+          idle.style.transition = `opacity ${duration}ms linear`;
           if (previous !== idle) {
-            previous.style.transition = "none";
-            previous.style.opacity = "0";
+            previous.style.transition = `opacity ${duration}ms linear`;
             previous.muted = true;
-            previous.pause();
-            previous.currentTime = 0;
+            previous.style.opacity = "0";
+            window.setTimeout(() => {
+              if (requestId !== idleRequestRef.current) return;
+              previous.pause();
+              previous.currentTime = 0;
+            }, duration);
           }
+          idle.style.opacity = "1";
 
           activeIndexRef.current = idleIndex;
           preparedIndexRef.current = null;

@@ -136,6 +136,12 @@ export class RuntimeController {
     }
   }
 
+  /** Last tablet left — clear lights and stop display like other fail-safes. */
+  onTabletDisconnected(): void {
+    if (!this.running || this.registry.tabletCount > 0) return;
+    void this.enterFailSafe(null, null, "tablet disconnected");
+  }
+
   onHeartbeat(
     role: NodeRole,
     heartbeat: { uptime_ms: number; status: "ready" | "error" },

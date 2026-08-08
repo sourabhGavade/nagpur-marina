@@ -3,14 +3,17 @@
 import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DeviceStatuses } from "@/components/device-statuses";
 import { MarinaLoading } from "@/components/marina-loading";
 import { useTabletContext } from "@/contexts/tablet-context";
 import { useGoHome } from "@/hooks/use-go-home";
+import { useStopOnBrowserBack } from "@/hooks/use-stop-on-browser-back";
 import type { Lighting, LightingModel } from "@/lib/types";
 import { MODEL_LABELS } from "@/lib/consts";
+
+const TOGGLE_COOLDOWN_MS = 500;
 
 function lightingModel(lighting: Lighting): LightingModel {
   return lighting.subZones[0]!.model;
@@ -26,8 +29,10 @@ export default function LightingPage() {
   const reduceMotion = useReducedMotion();
   const router = useRouter();
   const goHome = useGoHome();
+  useStopOnBrowserBack();
   const [onById, setOnById] = useState<Record<string, boolean>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const busyIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!layout || connectionState !== "connected") {
@@ -59,13 +64,20 @@ export default function LightingPage() {
   }
 
   async function toggleLighting(lighting: Lighting) {
+    if (busyIdRef.current === lighting.id) return;
+
     const nextOn = !onById[lighting.id];
     const action = nextOn ? "activate" : "deactivate";
 
+    busyIdRef.current = lighting.id;
     setBusyId(lighting.id);
     setOnById((current) => ({ ...current, [lighting.id]: nextOn }));
 
-    const result = await controlLighting(lighting.id, action);
+    // Wait for the cooldown and then control the lighting.
+    const [, result] = await Promise.all([
+      new Promise<void>((resolve) => setTimeout(resolve, TOGGLE_COOLDOWN_MS)),
+      controlLighting(lighting.id, action),
+    ]);
 
     if (result.status !== "success") {
       setOnById((current) => ({ ...current, [lighting.id]: !nextOn }));
@@ -74,6 +86,8 @@ export default function LightingPage() {
       });
     }
 
+    // Reset the busy state.
+    busyIdRef.current = null;
     setBusyId(null);
   }
 

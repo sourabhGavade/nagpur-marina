@@ -5,3 +5,6 @@ export const socketUrl =
     : `${window.location.protocol}//${window.location.hostname}:4000`);
 
 export const idleVideoUrl = "/zone-tv-videos/marina-reserve.mp4";
+
+/** Crossfade when returning from content video to the idle loop. */
+export const idleCrossfadeDurationMs = 500;

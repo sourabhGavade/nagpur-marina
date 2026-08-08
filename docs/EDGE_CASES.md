@@ -20,6 +20,9 @@ delegated to the separately implemented Raspberry Pi hardware agent.
 - A failed readiness check, heartbeat timeout, reported device error, or socket
   disconnect marks the affected device offline and starts fail-safe cleanup.
   Losing either Pi marks combined hardware status offline.
+- When the last tablet disconnects, the server also enters fail-safe: all-off
+  lighting to both Pis and stop on the display. If another tablet remains
+  connected, lighting and playback are left unchanged.
 - Lighting commands for Area/Zone/Sub-zone/Stop, and emergency shutdown, are
   broadcast identically to every connected hardware client; apply-state for
   those scopes requires successful ACKs from both.
