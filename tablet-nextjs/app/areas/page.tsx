@@ -185,7 +185,7 @@ export default function AreasPage() {
                       <button
                         type="button"
                         onClick={() => setSelectedAreaId(area.id)}
-                        className="pointer-events-none"
+                        className="pointer-events-none" // Disable pointer events for the button
                       >
                         {area.name}
                       </button>
@@ -209,7 +209,7 @@ export default function AreasPage() {
                       </button>
                     </div>
 
-                    <ul className="pointer-events-none">
+                    <ul className="pointer-events-none">  {/* Disable pointer events for the list of zones */}
                       {area.zones.map((zone, zoneIndex) => {
                         const status = zoneStatus(area.id, zone.id, zoneIndex);
                         const isCurrentZone =
