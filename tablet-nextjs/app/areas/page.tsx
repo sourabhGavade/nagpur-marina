@@ -185,6 +185,7 @@ export default function AreasPage() {
                       <button
                         type="button"
                         onClick={() => setSelectedAreaId(area.id)}
+                        className="pointer-events-none"
                       >
                         {area.name}
                       </button>
@@ -208,7 +209,7 @@ export default function AreasPage() {
                       </button>
                     </div>
 
-                    <ul>
+                    <ul className="pointer-events-none">
                       {area.zones.map((zone, zoneIndex) => {
                         const status = zoneStatus(area.id, zone.id, zoneIndex);
                         const isCurrentZone =
