@@ -479,6 +479,7 @@ export default function DisplayPage() {
     socket.on(
       "stop-video",
       (payload: VideoControlPayload, ack: (result: unknown) => void) => {
+        userMutedRef.current = false;
         stopPlayback(payload.hold_last_frame_ms);
         ack({
           transaction_id: payload.transaction_id,

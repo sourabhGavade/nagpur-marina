@@ -340,6 +340,19 @@ describe("Tablet controls", () => {
     server.runtime.state.activeAreaId = 1;
     server.runtime.state.activeZoneId = "masterplan-reveal";
 
+    display.once("mute-video", (payload, ack) => {
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        muted_at_ms: Date.now(),
+      });
+    });
+    const muteResult = await new Promise<any>((resolve) => {
+      tablet.emit("sequence-mute", resolve);
+    });
+    expect(muteResult.status).toBe("success");
+    expect(server.runtime.getRuntimeStatus().muted).toBe(true);
+
     const result = await new Promise<any>((resolve) => {
       tablet.emit("sequence-stop", resolve);
     });
@@ -349,6 +362,7 @@ describe("Tablet controls", () => {
     expect(server.runtime.state.activeZoneId).toBeNull();
     expect(server.runtime.state.activeAreaId).toBeNull();
     expect(stopPayload?.hold_last_frame_ms).toBeUndefined();
+    expect(server.runtime.getRuntimeStatus().muted).toBe(false);
   });
 
   test("broadcasts emergency shutdown repeatedly to both Pis", async () => {

@@ -471,6 +471,7 @@ export class RuntimeController {
     if (failures.length > 0) {
       throw new AggregateError(failures, "Normal stop did not fully complete");
     }
+    this.muted = false;
     this.broadcastRuntimeStatus();
   }
 
