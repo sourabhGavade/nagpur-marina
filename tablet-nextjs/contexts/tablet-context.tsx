@@ -126,7 +126,8 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         | "sequence-resume"
         | "sequence-mute"
         | "sequence-unmute"
-        | "sequence-stop",
+        | "sequence-stop"
+        | "clear-lights",
       payload?:
         | { area_id: Area["id"] }
         | { zone_id: Zone["id"] }
@@ -187,6 +188,11 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        if (event === "clear-lights") {
+          socket.emit("clear-lights", resolve);
+          return;
+        }
+
         socket.emit("sequence-stop", resolve);
       }),
     [],
@@ -213,6 +219,11 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
 
   const stopSequence = useCallback(
     () => emitCommand("sequence-stop"),
+    [emitCommand],
+  );
+
+  const clearLights = useCallback(
+    () => emitCommand("clear-lights"),
     [emitCommand],
   );
 
@@ -261,6 +272,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         muteSequence,
         unmuteSequence,
         stopSequence,
+        clearLights,
       }}
     >
       {children}

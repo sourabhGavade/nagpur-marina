@@ -323,8 +323,16 @@ describe("Tablet controls", () => {
     expect(appliedZones).toEqual(["masterplan-reveal"]);
   });
 
-  test("stops video and switches every output off", async () => {
-    acknowledgeHardwareApply(hardware);
+  test("stops video and applies idle lights", async () => {
+    let idlePayload: HardwareApplyStatePayload | undefined;
+    hardware.on("hardware-apply-state", (payload, ack) => {
+      idlePayload = payload;
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
+      });
+    });
     acknowledgeHardwareApply(hardware2);
     let stopPayload: { hold_last_frame_ms?: number } | undefined;
     display.once("stop-video", (payload, ack) => {
@@ -363,6 +371,18 @@ describe("Tablet controls", () => {
     expect(server.runtime.state.activeAreaId).toBeNull();
     expect(stopPayload?.hold_last_frame_ms).toBeUndefined();
     expect(server.runtime.getRuntimeStatus().muted).toBe(false);
+    expect(idlePayload?.scope).toBe("system");
+    expect(idlePayload?.mode).toBe("idle");
+    expect(idlePayload?.area_id).toBeNull();
+    expect(idlePayload?.zone_id).toBeNull();
+    expect(idlePayload?.lighting_id).toBeNull();
+    expect(idlePayload?.lights.length).toBeGreaterThan(0);
+    expect(
+      idlePayload?.lights.every(
+        (light) =>
+          light.model === "main-model" && light.action === "activate",
+      ),
+    ).toBe(true);
   });
 
   test("broadcasts emergency shutdown repeatedly to both Pis", async () => {
@@ -388,6 +408,51 @@ describe("Tablet controls", () => {
 
     expect(emergencyCount).toBe(6);
     expect(server.runtime.state.mode).toBe("idle");
+  });
+
+  test("clear-lights sends empty fail-safe payload to both Pis", async () => {
+    const payloads: HardwareApplyStatePayload[] = [];
+
+    hardware.on("hardware-apply-state", (payload, ack) => {
+      payloads.push(payload);
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
+      });
+    });
+    hardware2.on("hardware-apply-state", (payload, ack) => {
+      payloads.push(payload);
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
+      });
+    });
+
+    server.runtime.state.mode = "zone";
+    server.runtime.state.activeAreaId = 1;
+    server.runtime.state.activeZoneId = "masterplan-reveal";
+
+    const result = await new Promise<any>((resolve) => {
+      tablet.emit("clear-lights", resolve);
+    });
+
+    expect(result.status).toBe("success");
+    expect(payloads).toHaveLength(2);
+    expect(
+      payloads.every(
+        (payload) =>
+          payload.scope === "system" &&
+          payload.mode === "replace" &&
+          payload.lights.length === 0 &&
+          payload.area_id === null &&
+          payload.zone_id === null &&
+          payload.lighting_id === null,
+      ),
+    ).toBe(true);
+    expect(server.runtime.state.mode as string).toBe("idle");
+    expect(server.runtime.state.activeZoneId).toBeNull();
   });
 
   test("routes main-model lighting only to raspberry-pi-1", async () => {
