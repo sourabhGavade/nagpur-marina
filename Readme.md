@@ -22,6 +22,31 @@ both are connected and ready.
 - [Bun](https://bun.sh/) for the Socket.IO server
 - Node.js 20+ and npm for the Next.js applications
 - A modern browser with WebSocket and autoplay support
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) for site packaging and venue install
+
+## Site install (single Docker image)
+
+Venues run **one** image with no source tree. Full details:
+[docs/DOCKER_DEPLOY.md](docs/DOCKER_DEPLOY.md) and
+[docs/README-SITE.txt](docs/README-SITE.txt).
+
+**Build and export (dev machine):**
+
+```powershell
+.\scripts\docker-build.bat
+.\scripts\docker-export.bat
+```
+
+Copy everything under `dist/` (especially `nagpur-marina.tar`, `run.bat`,
+`stop.bat`) to the site PC.
+
+**On site:** install Docker Desktop once, then double-click `run.bat`. That
+loads the image if needed, starts the container (`3000` / `3001` / `4000`),
+optionally starts host Caddy, and opens the TV kiosk. Use `stop.bat` to stop.
+
+Host Caddy can keep reverse-proxying to `localhost:3000`, `:3001`, and `:4000`
+as before. Set `ENABLE_MOCK_HARDWARE=1` in `run.bat` only when running without
+real Raspberry Pis.
 
 ## Install
 
