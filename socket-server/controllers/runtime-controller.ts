@@ -6,6 +6,7 @@ import {
 import {
   EXPECTED_HARDWARE_CLIENTS,
   IDLE_HOLD_LAST_FRAME_MS,
+  IDLE_LIGHTS_CONFIG,
 } from "../lib/consts.ts";
 import {
   hardwareClientsForLights,
@@ -26,6 +27,7 @@ import type {
   RuntimeStatus,
   SocketAck,
   StopVideoResult,
+  SubZoneHardwareState,
   UnmuteVideoResult,
   Zone,
 } from "../utils/types.ts";
@@ -51,6 +53,7 @@ export interface RuntimeControllerOptions {
   safeExecutionLeadMs?: number;
   mediaCommandTimeoutMs?: number;
   executionLeadMs?: number;
+  idleHoldLastFrameMs?: number;
 }
 
 type FlightKey = string;
@@ -73,6 +76,7 @@ export class RuntimeController {
   private readonly safeExecutionLeadMs: number;
   private readonly mediaCommandTimeoutMs: number;
   private readonly executionLeadMs: number;
+  private readonly idleHoldLastFrameMs: number;
   private readonly readinessInFlight = new Set<FlightKey>();
   private readonly failuresInFlight = new Set<FlightKey>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -91,6 +95,8 @@ export class RuntimeController {
     this.safeExecutionLeadMs = options.safeExecutionLeadMs ?? 100;
     this.mediaCommandTimeoutMs = options.mediaCommandTimeoutMs ?? 5_000;
     this.executionLeadMs = options.executionLeadMs ?? 250;
+    this.idleHoldLastFrameMs =
+      options.idleHoldLastFrameMs ?? IDLE_HOLD_LAST_FRAME_MS;
   }
 
   start(): void {
@@ -452,7 +458,7 @@ export class RuntimeController {
       failures.push(new Error("hardware_offline"));
     }
     for (const hardware of hardwareClients) {
-      tasks.push(this.sendAllOff(hardware));
+      tasks.push(this.sendIdleState(hardware));
     }
 
     if (display?.connected) tasks.push(this.stopDisplay(display));
@@ -477,39 +483,22 @@ export class RuntimeController {
 
   /** Natural finish: preserve last area/zone; display holds last frame then idle. */
   async finishNormally(): Promise<void> {
-    const hardwareClients = this.registry.getHardwareClients();
     const display = this.registry.getDisplay();
-    this.state.endPlayback();
+    const generation = this.state.endPlayback();
 
     const failures: unknown[] = [];
-    const tasks: Promise<unknown>[] = [];
-
-    if (hardwareClients.length < EXPECTED_HARDWARE_CLIENTS) {
-      failures.push(new Error("hardware_offline"));
-    }
-    for (const hardware of hardwareClients) {
-      tasks.push(this.sendAllOff(hardware));
-    }
 
     if (display?.connected) {
-      tasks.push(
-        this.stopDisplay(display, {
-          hold_last_frame_ms: IDLE_HOLD_LAST_FRAME_MS,
-        }),
-      );
+      try {
+        await this.stopDisplay(display, {
+          hold_last_frame_ms: this.idleHoldLastFrameMs,
+        });
+      } catch (error) {
+        failures.push(error);
+      }
     } else {
       failures.push(new Error("display_offline"));
     }
-
-    const results = await Promise.allSettled(tasks);
-    failures.push(
-      ...results
-        .filter(
-          (result): result is PromiseRejectedResult =>
-            result.status === "rejected",
-        )
-        .map(({ reason }) => reason),
-    );
 
     if (failures.length > 0) {
       throw new AggregateError(
@@ -517,7 +506,9 @@ export class RuntimeController {
         "Natural finish did not fully complete",
       );
     }
+
     this.broadcastRuntimeStatus();
+    void this.applyIdleLightsAfterHold(generation);
   }
 
   getRuntimeStatus(): RuntimeStatus {
@@ -543,6 +534,36 @@ export class RuntimeController {
 
   async enterSystemFailSafe(reason: string): Promise<void> {
     await this.enterFailSafe(null, null, reason);
+  }
+
+  /** Reuses fail-safe `sendAllOff` (`lights: []`) on every connected Pi. */
+  async clearAllLights(): Promise<void> {
+    if (!this.state.isOnline("hardware")) {
+      throw new Error("hardware_offline");
+    }
+
+    const hardwareClients = this.registry.getHardwareClients();
+    if (hardwareClients.length < EXPECTED_HARDWARE_CLIENTS) {
+      throw new Error("hardware_offline");
+    }
+
+    this.state.invalidate();
+
+    const results = await Promise.allSettled(
+      hardwareClients.map((hardware) => this.sendAllOff(hardware)),
+    );
+    const failures = results
+      .filter(
+        (result): result is PromiseRejectedResult =>
+          result.status === "rejected",
+      )
+      .map(({ reason }) => reason);
+
+    if (failures.length > 0) {
+      throw new AggregateError(failures, "Clear lights did not fully complete");
+    }
+
+    this.broadcastRuntimeStatus();
   }
 
   private async verifyReadiness(
@@ -724,6 +745,78 @@ export class RuntimeController {
     }
   }
 
+  private async applyIdleLightsAfterHold(generation: number): Promise<void> {
+    const stillCurrent = await this.state.waitFor(
+      this.idleHoldLastFrameMs,
+      generation,
+    );
+    if (!stillCurrent || !this.running) return;
+
+    const hardwareClients = this.registry.getHardwareClients();
+    if (hardwareClients.length === 0) return;
+
+    const results = await Promise.allSettled(
+      hardwareClients.map((hardware) => this.sendIdleState(hardware)),
+    );
+    for (const result of results) {
+      if (result.status === "rejected") {
+        console.error(
+          `[runtime] idle lights after hold failed: ${
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason)
+          }`,
+        );
+      }
+    }
+  }
+
+  private idleLightsPayload(): SubZoneHardwareState[] {
+    return IDLE_LIGHTS_CONFIG.map((light) => ({
+      ...light,
+      action: "activate",
+    }));
+  }
+
+  /** Logo/stop and post-hold idle: mode idle with IDLE_LIGHTS_CONFIG. */
+  private async sendIdleState(socket: AppSocket): Promise<void> {
+    const transactionId = createTransactionId("safe-idle");
+    const partitions = partitionLightsByHardwareClient(this.idleLightsPayload());
+    const lights = partitions[socket.data.client_id] ?? [];
+
+    const result = await requestAck({
+      socket,
+      runtime: this.state,
+      transactionId,
+      timeoutMs: this.safeCommandTimeoutMs,
+      schema: HardwareApplyResultSchema,
+      emit: (ack) => {
+        socket.emit(
+          "hardware-apply-state",
+          {
+            transaction_id: transactionId,
+            area_id: null,
+            zone_id: null,
+            lighting_id: null,
+            scope: "system",
+            mode: "idle",
+            execute_at_ms: Date.now() + this.safeExecutionLeadMs,
+            lights,
+          },
+          ack as SocketAck<HardwareApplyResult>,
+        );
+      },
+    });
+
+    if (result.transaction_id !== transactionId) {
+      throw new Error("Hardware ACK transaction_id does not match");
+    }
+    if (result.status === "error") {
+      throw new Error(`${result.error_code}: ${result.message}`);
+    }
+  }
+
+  // Fail-safe: turn off all lights.
   private async sendAllOff(socket: AppSocket): Promise<void> {
     const transactionId = createTransactionId("safe-off");
     const result = await requestAck({

@@ -72,7 +72,7 @@ export interface HardwareApplyStatePayload {
   zone_id: Zone["id"] | null;
   lighting_id: Lighting["id"] | null;
   scope: HardwareStateScope;
-  mode: "replace" | "add";
+  mode: "replace" | "add" | "idle";
   execute_at_ms: number;
   /**
    * One item per SubZone. A single SubZone command has one item;
@@ -387,6 +387,7 @@ export interface TabletToServerEvents {
   "sequence-mute": (ack: SocketAck<CommandResult>) => void;
   "sequence-unmute": (ack: SocketAck<CommandResult>) => void;
   "sequence-stop": (ack: SocketAck<CommandResult>) => void;
+  "clear-lights": (ack: SocketAck<CommandResult>) => void;
   "global-emergency-stop": () => void;
 }
 
