@@ -14,15 +14,28 @@ source code, Bun, or Node — only Docker Desktop and the export package.
 
 ## Build (dev machine)
 
+`NEXT_PUBLIC_SOCKET_URL` is baked into tablet/TV at **image build** time (Next
+inlines `NEXT_PUBLIC_*`). Default matches site Caddy:
+
+`https://192.168.0.111:5001`
+
+Internal container still listens on `4000`; Caddy should proxy `5001` → host `4000`.
+
 ```powershell
-# From repo root
+# From repo root (uses default socket URL)
+.\scripts\docker-build.bat
+
+# Or override before build
+$env:NEXT_PUBLIC_SOCKET_URL="https://192.168.0.111:5001"
 .\scripts\docker-build.bat
 ```
 
 Or:
 
 ```powershell
-docker build -t nagpur-marina:latest .
+docker build -t nagpur-marina:latest `
+  --build-arg NEXT_PUBLIC_SOCKET_URL=https://192.168.0.111:5001 `
+  .
 ```
 
 ## Export site package

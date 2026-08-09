@@ -37,6 +37,10 @@ Venues run **one** image with no source tree. Full details:
 .\scripts\docker-export.bat
 ```
 
+Tablet/TV use Caddy’s public Socket.IO URL by default
+(`https://192.168.0.111:5001`). Override before build if the site IP/port
+differs: `$env:NEXT_PUBLIC_SOCKET_URL="https://...:5001"`.
+
 Copy everything under `dist/` (especially `nagpur-marina.tar`, `run.bat`,
 `stop.bat`) to the site PC.
 

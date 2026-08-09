@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1
 
+# Browser Socket.IO URL (Caddy). Inlined into tablet/TV at build time.
+# Override: docker build --build-arg NEXT_PUBLIC_SOCKET_URL=https://host:5001 .
+ARG NEXT_PUBLIC_SOCKET_URL=https://192.168.0.111:5001
+
 # ---------------------------------------------------------------------------
 # Build: socket-server (Bun)
 # ---------------------------------------------------------------------------
@@ -17,11 +21,14 @@ COPY socket-server/ ./
 FROM node:20-bookworm-slim AS builder-tablet
 WORKDIR /app/tablet-nextjs
 
+ARG NEXT_PUBLIC_SOCKET_URL=https://192.168.0.111:5001
+ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+
 COPY tablet-nextjs/package.json tablet-nextjs/package-lock.json* ./
 RUN npm install
 
 COPY tablet-nextjs/ ./
-ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ---------------------------------------------------------------------------
@@ -30,11 +37,14 @@ RUN npm run build
 FROM node:20-bookworm-slim AS builder-tv
 WORKDIR /app/tv-nextjs
 
+ARG NEXT_PUBLIC_SOCKET_URL=https://192.168.0.111:5001
+ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+
 COPY tv-nextjs/package.json tv-nextjs/package-lock.json* ./
 RUN npm install
 
 COPY tv-nextjs/ ./
-ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ---------------------------------------------------------------------------
