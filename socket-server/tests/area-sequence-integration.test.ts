@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { io as createClient, type Socket } from "socket.io-client";
 import { createSocketServer, type SocketServer } from "../lib/server.ts";
-import { IDLE_HOLD_LAST_FRAME_MS } from "../lib/consts.ts";
 import { config } from "../utils/config.ts";
+import type { HardwareApplyStatePayload } from "../utils/types.ts";
+
+const TEST_IDLE_HOLD_MS = 50;
 
 async function waitUntil(
   condition: () => boolean,
@@ -28,6 +30,7 @@ describe("continuous Area sequence", () => {
     transaction_id: string;
     hold_last_frame_ms?: number;
   }> = [];
+  const idlePayloads: HardwareApplyStatePayload[] = [];
   const muteEvents: string[] = [];
   let latestRuntimeStatus: { muted?: boolean } | null = null;
 
@@ -35,6 +38,7 @@ describe("continuous Area sequence", () => {
     appliedZones.length = 0;
     executionTimes.length = 0;
     stopPayloads.length = 0;
+    idlePayloads.length = 0;
     muteEvents.length = 0;
     latestRuntimeStatus = null;
 
@@ -54,6 +58,7 @@ describe("continuous Area sequence", () => {
         readinessTimeoutMs: 250,
         mediaCommandTimeoutMs: 250,
         executionLeadMs: 5,
+        idleHoldLastFrameMs: TEST_IDLE_HOLD_MS,
       },
     });
     const port = await server.listen(0, "127.0.0.1");
@@ -84,7 +89,9 @@ describe("continuous Area sequence", () => {
       });
     });
     hardware.on("hardware-apply-state", (payload, ack) => {
-      if (payload.zone_id) {
+      if (payload.mode === "idle") {
+        idlePayloads.push(payload);
+      } else if (payload.zone_id) {
         appliedZones.push(payload.zone_id);
         executionTimes.push(payload.execute_at_ms);
       }
@@ -95,6 +102,9 @@ describe("continuous Area sequence", () => {
       });
     });
     hardware2.on("hardware-apply-state", (payload, ack) => {
+      if (payload.mode === "idle") {
+        idlePayloads.push(payload);
+      }
       ack({
         transaction_id: payload.transaction_id,
         status: "success",
@@ -168,6 +178,7 @@ describe("continuous Area sequence", () => {
     appliedZones.length = 0;
     executionTimes.length = 0;
     stopPayloads.length = 0;
+    idlePayloads.length = 0;
     muteEvents.length = 0;
     latestRuntimeStatus = null;
     clients.length = 0;
@@ -221,10 +232,17 @@ describe("continuous Area sequence", () => {
     await waitUntil(() => server.runtime.state.mode === "idle", 1_500);
     expect(server.runtime.state.activeAreaId).toBe(1);
     expect(server.runtime.state.activeZoneId).toBe("masterplan-reveal");
-    expect(stopPayloads.at(-1)?.hold_last_frame_ms).toBe(
-      IDLE_HOLD_LAST_FRAME_MS,
-    );
+    expect(stopPayloads.at(-1)?.hold_last_frame_ms).toBe(TEST_IDLE_HOLD_MS);
     expect(appliedZones).not.toContain("lifestyle-anchors-intro");
+
+    await waitUntil(() => idlePayloads.length >= 2, 1_000);
+    expect(idlePayloads.every((payload) => payload.mode === "idle")).toBe(true);
+    expect(idlePayloads.every((payload) => payload.scope === "system")).toBe(
+      true,
+    );
+    expect(idlePayloads.some((payload) => payload.lights.length > 0)).toBe(
+      true,
+    );
   });
 
   test("pauses Area timing and resumes with the remaining delay", async () => {
@@ -273,9 +291,10 @@ describe("continuous Area sequence", () => {
 
     await waitUntil(() => server.runtime.state.mode === "idle", 1_500);
     expect(server.runtime.state.activeZoneId).toBe("why-nagpur-marina");
-    expect(stopPayloads.at(-1)?.hold_last_frame_ms).toBe(
-      IDLE_HOLD_LAST_FRAME_MS,
-    );
+    expect(stopPayloads.at(-1)?.hold_last_frame_ms).toBe(TEST_IDLE_HOLD_MS);
+
+    await waitUntil(() => idlePayloads.length >= 2, 1_000);
+    expect(idlePayloads.every((payload) => payload.mode === "idle")).toBe(true);
   });
 
   test("rejects Zone activation while an Area sequence is playing", async () => {
