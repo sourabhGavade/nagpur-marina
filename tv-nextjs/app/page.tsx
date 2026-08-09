@@ -21,13 +21,13 @@ export default function DisplayPage() {
   const activeZoneRef = useRef<string | null>(null);
   const startedAtRef = useRef(0);
   const idleRequestRef = useRef(0);
-  const audioUnlockedRef = useRef(false);
+  const audioUnlockedRef = useRef(true);
   const userMutedRef = useRef(false);
 
   const [connected, setConnected] = useState(false);
   const [playbackState, setPlaybackState] = useState<PlaybackState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const [audioUnlocked, setAudioUnlocked] = useState(true);
 
   useEffect(() => {
     const videoA = videoARef.current;
@@ -113,7 +113,7 @@ export default function DisplayPage() {
 
       idle.pause();
       idle.loop = true;
-      idle.muted = true;
+      applyActiveMute(idle);
       idle.style.transition = "none";
       if (idle !== previous) {
         idle.style.opacity = "0";
@@ -532,14 +532,12 @@ export default function DisplayPage() {
       <video
         ref={videoARef}
         className="display-video"
-        muted
         playsInline
         preload="auto"
       />
       <video
         ref={videoBRef}
         className="display-video"
-        muted
         playsInline
         preload="auto"
       />
