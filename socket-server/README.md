@@ -78,6 +78,7 @@ Implemented Tablet controls:
 - `sequence-pause`
 - `sequence-resume`
 - `sequence-stop`
+- `clear-lights`
 - `global-emergency-stop`
 
 Area activation starts from the selected Area, follows ordered Zones through

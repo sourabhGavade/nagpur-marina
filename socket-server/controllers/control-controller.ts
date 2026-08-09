@@ -62,6 +62,9 @@ export class ControlController {
     socket.on("sequence-stop", (ack) => {
       void this.handleSequenceStop(ack);
     });
+    socket.on("clear-lights", (ack) => {
+      void this.handleClearLights(ack);
+    });
     socket.on("sequence-pause", (ack) => {
       void this.handleSequencePause(ack);
     });
@@ -294,6 +297,21 @@ export class ControlController {
       reply({ status: "success", transaction_id: operationId });
     } catch (error) {
       await this.runtime.enterSystemFailSafe("normal stop failed");
+      reply(this.toCommandError(operationId, error));
+    }
+  }
+
+  private async handleClearLights(
+    ack: SocketAck<CommandResult>,
+  ): Promise<void> {
+    const operationId = createTransactionId("clear-lights");
+    const reply = this.once(ack);
+
+    try {
+      this.assertControlsAvailable();
+      await this.runtime.clearAllLights();
+      reply({ status: "success", transaction_id: operationId });
+    } catch (error) {
       reply(this.toCommandError(operationId, error));
     }
   }

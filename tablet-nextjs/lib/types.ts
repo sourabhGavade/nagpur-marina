@@ -85,4 +85,5 @@ export interface TabletContextValue {
   muteSequence: () => Promise<CommandResult>;
   unmuteSequence: () => Promise<CommandResult>;
   stopSequence: () => Promise<CommandResult>;
+  clearLights: () => Promise<CommandResult>;
 }

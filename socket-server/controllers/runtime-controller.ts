@@ -536,6 +536,36 @@ export class RuntimeController {
     await this.enterFailSafe(null, null, reason);
   }
 
+  /** Reuses fail-safe `sendAllOff` (`lights: []`) on every connected Pi. */
+  async clearAllLights(): Promise<void> {
+    if (!this.state.isOnline("hardware")) {
+      throw new Error("hardware_offline");
+    }
+
+    const hardwareClients = this.registry.getHardwareClients();
+    if (hardwareClients.length < EXPECTED_HARDWARE_CLIENTS) {
+      throw new Error("hardware_offline");
+    }
+
+    this.state.invalidate();
+
+    const results = await Promise.allSettled(
+      hardwareClients.map((hardware) => this.sendAllOff(hardware)),
+    );
+    const failures = results
+      .filter(
+        (result): result is PromiseRejectedResult =>
+          result.status === "rejected",
+      )
+      .map(({ reason }) => reason);
+
+    if (failures.length > 0) {
+      throw new AggregateError(failures, "Clear lights did not fully complete");
+    }
+
+    this.broadcastRuntimeStatus();
+  }
+
   private async verifyReadiness(
     role: NodeRole,
     socket: AppSocket,
@@ -786,6 +816,7 @@ export class RuntimeController {
     }
   }
 
+  // Fail-safe: turn off all lights.
   private async sendAllOff(socket: AppSocket): Promise<void> {
     const transactionId = createTransactionId("safe-off");
     const result = await requestAck({

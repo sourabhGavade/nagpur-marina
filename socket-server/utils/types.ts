@@ -387,6 +387,7 @@ export interface TabletToServerEvents {
   "sequence-mute": (ack: SocketAck<CommandResult>) => void;
   "sequence-unmute": (ack: SocketAck<CommandResult>) => void;
   "sequence-stop": (ack: SocketAck<CommandResult>) => void;
+  "clear-lights": (ack: SocketAck<CommandResult>) => void;
   "global-emergency-stop": () => void;
 }
 
