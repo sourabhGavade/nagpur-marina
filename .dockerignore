@@ -13,7 +13,12 @@ run.bat
 stop.bat
 scripts
 deploy
-**/.env
-**/.env.*
+# App-local env files (often secrets); site socket URLs come from ENVs/ENVs only
+socket-server/.env
+socket-server/.env.*
+tablet-nextjs/.env
+tablet-nextjs/.env.*
+tv-nextjs/.env
+tv-nextjs/.env.*
 graphify-out
 .cursor

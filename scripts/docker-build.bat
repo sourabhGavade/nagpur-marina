@@ -2,13 +2,24 @@
 setlocal
 cd /d "%~dp0.."
 
-:: Browser Socket.IO URL (Caddy public endpoint). Override when needed:
-::   set NEXT_PUBLIC_SOCKET_URL=https://192.168.0.50:5001
-if "%NEXT_PUBLIC_SOCKET_URL%"=="" set "NEXT_PUBLIC_SOCKET_URL=https://192.168.0.111:5001"
+if not exist "ENVs\ENVs\tablet-nextjs\.env" (
+  echo ERROR: missing ENVs\ENVs\tablet-nextjs\.env
+  exit /b 1
+)
+if not exist "ENVs\ENVs\tv-nextjs\.env" (
+  echo ERROR: missing ENVs\ENVs\tv-nextjs\.env
+  exit /b 1
+)
 
-echo Building nagpur-marina:latest ...
-echo   NEXT_PUBLIC_SOCKET_URL=%NEXT_PUBLIC_SOCKET_URL%
-docker build -t nagpur-marina:latest --build-arg "NEXT_PUBLIC_SOCKET_URL=%NEXT_PUBLIC_SOCKET_URL%" .
+echo Building nagpur-marina:latest from ENVs\ENVs ...
+echo   tablet: 
+type ENVs\ENVs\tablet-nextjs\.env
+echo   tv:
+type ENVs\ENVs\tv-nextjs\.env
+echo   server:
+type ENVs\ENVs\socket-server\.env
+
+docker build -t nagpur-marina:latest .
 if errorlevel 1 (
   echo Build failed.
   exit /b 1

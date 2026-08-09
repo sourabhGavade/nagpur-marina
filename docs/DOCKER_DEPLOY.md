@@ -14,29 +14,29 @@ source code, Bun, or Node — only Docker Desktop and the export package.
 
 ## Build (dev machine)
 
-`NEXT_PUBLIC_SOCKET_URL` is baked into tablet/TV at **image build** time (Next
-inlines `NEXT_PUBLIC_*`). Default matches site Caddy:
+Socket URLs are **not** the same for tablet and TV. They are taken from
+[`ENVs/ENVs`](../ENVs/ENVs) at **image build** time (Next inlines `NEXT_PUBLIC_*`):
 
-`https://192.168.0.111:5001`
+| App | File | Default (site) |
+|---|---|---|
+| Tablet | `ENVs/ENVs/tablet-nextjs/.env` | `https://192.168.0.111:5001` (Caddy, LAN tablet) |
+| TV | `ENVs/ENVs/tv-nextjs/.env` | `http://localhost:4000` (same PC as kiosk/server) |
+| Server | `ENVs/ENVs/socket-server/.env` | `HOST=0.0.0.0` `PORT=4000` (Caddy proxies `:5001` → this) |
 
-Internal container still listens on `4000`; Caddy should proxy `5001` → host `4000`.
+Edit those files if the site IP or Caddy port changes, then rebuild.
 
 ```powershell
-# From repo root (uses default socket URL)
-.\scripts\docker-build.bat
-
-# Or override before build
-$env:NEXT_PUBLIC_SOCKET_URL="https://192.168.0.111:5001"
 .\scripts\docker-build.bat
 ```
 
 Or:
 
 ```powershell
-docker build -t nagpur-marina:latest `
-  --build-arg NEXT_PUBLIC_SOCKET_URL=https://192.168.0.111:5001 `
-  .
+docker build -t nagpur-marina:latest .
 ```
+
+Do **not** give tablet and TV the same socket URL: TV stays on loopback;
+tablet must use the Caddy HTTPS endpoint.
 
 ## Export site package
 

@@ -1,9 +1,5 @@
 # syntax=docker/dockerfile:1
 
-# Browser Socket.IO URL (Caddy). Inlined into tablet/TV at build time.
-# Override: docker build --build-arg NEXT_PUBLIC_SOCKET_URL=https://host:5001 .
-ARG NEXT_PUBLIC_SOCKET_URL=https://192.168.0.111:5001
-
 # ---------------------------------------------------------------------------
 # Build: socket-server (Bun)
 # ---------------------------------------------------------------------------
@@ -14,37 +10,40 @@ COPY socket-server/package.json socket-server/bun.lock* ./
 RUN bun install --frozen-lockfile || bun install
 
 COPY socket-server/ ./
+# Runtime bind settings (HOST/PORT); not secret — used by Bun at process start
+COPY ENVs/ENVs/socket-server/.env ./.env
 
 # ---------------------------------------------------------------------------
 # Build: tablet Next.js (standalone)
+# Socket: Caddy LAN — https://192.168.0.111:5001 (see ENVs/ENVs/tablet-nextjs/.env)
 # ---------------------------------------------------------------------------
 FROM node:20-bookworm-slim AS builder-tablet
 WORKDIR /app/tablet-nextjs
 
-ARG NEXT_PUBLIC_SOCKET_URL=https://192.168.0.111:5001
-ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY tablet-nextjs/package.json tablet-nextjs/package-lock.json* ./
 RUN npm install
 
 COPY tablet-nextjs/ ./
+# Next inlines NEXT_PUBLIC_* from .env during `next build`
+COPY ENVs/ENVs/tablet-nextjs/.env ./.env
 RUN npm run build
 
 # ---------------------------------------------------------------------------
 # Build: TV Next.js (standalone)
+# Socket: same machine as server — http://localhost:4000 (see ENVs/ENVs/tv-nextjs/.env)
 # ---------------------------------------------------------------------------
 FROM node:20-bookworm-slim AS builder-tv
 WORKDIR /app/tv-nextjs
 
-ARG NEXT_PUBLIC_SOCKET_URL=https://192.168.0.111:5001
-ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY tv-nextjs/package.json tv-nextjs/package-lock.json* ./
 RUN npm install
 
 COPY tv-nextjs/ ./
+COPY ENVs/ENVs/tv-nextjs/.env ./.env
 RUN npm run build
 
 # ---------------------------------------------------------------------------
@@ -70,6 +69,7 @@ COPY --from=builder-server /app/socket-server/data /app/server/data
 COPY --from=builder-server /app/socket-server/lib /app/server/lib
 COPY --from=builder-server /app/socket-server/utils /app/server/utils
 COPY --from=builder-server /app/socket-server/scripts /app/server/scripts
+COPY --from=builder-server /app/socket-server/.env /app/server/.env
 
 # Tablet standalone + static + public
 COPY --from=builder-tablet /app/tablet-nextjs/.next/standalone /app/tablet
@@ -86,9 +86,6 @@ RUN chmod +x /app/entrypoint.sh \
   && sed -i 's/\r$//' /app/entrypoint.sh
 
 ENV NODE_ENV=production \
-    PORT=4000 \
-    HOST=0.0.0.0 \
-    CORS_ORIGIN=* \
     ENABLE_MOCK_HARDWARE=0 \
     NEXT_TELEMETRY_DISABLED=1
 
