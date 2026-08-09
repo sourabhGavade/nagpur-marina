@@ -49,6 +49,33 @@ function acknowledgeReadiness(
   );
 }
 
+function acknowledgeHardwareApply(socket: TestClient): void {
+  socket.on(
+    "hardware-apply-state",
+    (
+      payload: { transaction_id: string },
+      ack: (result: unknown) => void,
+    ) => {
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
+      });
+    },
+  );
+}
+
+async function waitUntil(
+  condition: () => boolean,
+  timeoutMs = 1_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!condition()) {
+    if (Date.now() >= deadline) throw new Error("Condition timed out");
+    await Bun.sleep(5);
+  }
+}
+
 function connectHardwarePair(
   client: (
     auth: Record<string, unknown>,
@@ -65,6 +92,8 @@ function connectHardwarePair(
   });
   acknowledgeReadiness(first, "hardware-readiness-check");
   acknowledgeReadiness(second, "hardware-readiness-check");
+  acknowledgeHardwareApply(first);
+  acknowledgeHardwareApply(second);
   return [first, second];
 }
 
@@ -99,6 +128,7 @@ describe("Socket.IO server foundation", () => {
       auth,
       autoConnect: false,
       forceNew: true,
+      reconnection: false,
       transports: ["websocket"],
       ...options,
     });
@@ -250,43 +280,87 @@ describe("Socket.IO server foundation", () => {
     expect(server.runtime.state.isOnline("hardware")).toBe(false);
   });
 
-  test("switches hardware off when the display disconnects", async () => {
+  test("applies idle lights to both Pis when hardware comes online", async () => {
     const [hardware, hardware2] = connectHardwarePair(client);
-    const hardwareConnected = once(hardware, "connect");
-    const hardware2Connected = once(hardware2, "connect");
-    hardware.connect();
-    hardware2.connect();
-    await Promise.all([hardwareConnected, hardware2Connected]);
+    const idlePayloads: Array<{ mode?: string; lights: unknown[] }> = [];
 
-    const safeOff = new Promise<{ lights: unknown[] }>((resolve) => {
-      hardware.once(
+    for (const pi of [hardware, hardware2]) {
+      pi.on(
         "hardware-apply-state",
-        (
-          payload: { transaction_id: string; lights: unknown[] },
-          ack: (result: unknown) => void,
-        ) => {
-          ack({
-            transaction_id: payload.transaction_id,
-            status: "success",
-            applied_at_ms: Date.now(),
-          });
-          resolve(payload);
+        (payload: { mode?: string; lights: unknown[] }) => {
+          if (payload.mode === "idle") idlePayloads.push(payload);
         },
       );
-    });
-    hardware2.on(
-      "hardware-apply-state",
-      (
-        payload: { transaction_id: string },
-        ack: (result: unknown) => void,
-      ) => {
-        ack({
-          transaction_id: payload.transaction_id,
-          status: "success",
-          applied_at_ms: Date.now(),
-        });
-      },
+    }
+
+    hardware.connect();
+    hardware2.connect();
+
+    await waitUntil(() => server.runtime.state.isOnline("hardware"));
+    await waitUntil(() => idlePayloads.length >= 2);
+
+    expect(idlePayloads).toHaveLength(2);
+    expect(idlePayloads.every((payload) => payload.mode === "idle")).toBe(true);
+    expect(idlePayloads.some((payload) => payload.lights.length > 0)).toBe(
+      true,
     );
+  });
+
+  test("re-applies idle lights to both Pis after a hardware reconnect", async () => {
+    const [hardware, hardware2] = connectHardwarePair(client);
+    const idlePayloads: Array<{ mode?: string }> = [];
+
+    for (const pi of [hardware, hardware2]) {
+      pi.on("hardware-apply-state", (payload: { mode?: string }) => {
+        if (payload.mode === "idle") idlePayloads.push(payload);
+      });
+    }
+
+    hardware.connect();
+    hardware2.connect();
+    await waitUntil(() => server.runtime.state.isOnline("hardware"));
+    await waitUntil(() => idlePayloads.length >= 2);
+    idlePayloads.length = 0;
+
+    hardware.disconnect();
+    await waitUntil(() => !server.runtime.state.isOnline("hardware"));
+
+    const reconnected = client({
+      role: "hardware",
+      client_id: "raspberry-pi-1",
+    });
+    acknowledgeReadiness(reconnected, "hardware-readiness-check");
+    acknowledgeHardwareApply(reconnected);
+    reconnected.on("hardware-apply-state", (payload: { mode?: string }) => {
+      if (payload.mode === "idle") idlePayloads.push(payload);
+    });
+    reconnected.connect();
+
+    await waitUntil(() => server.runtime.state.isOnline("hardware"));
+    await waitUntil(() => idlePayloads.length >= 2);
+
+    expect(idlePayloads.length).toBeGreaterThanOrEqual(2);
+    expect(idlePayloads.every((payload) => payload.mode === "idle")).toBe(true);
+  });
+
+  test("switches hardware off when the display disconnects", async () => {
+    const [hardware, hardware2] = connectHardwarePair(client);
+    hardware.connect();
+    hardware2.connect();
+    await waitUntil(() => server.runtime.state.isOnline("hardware"));
+    await Bun.sleep(50);
+
+    const safeOff = new Promise<{ lights: unknown[] }>((resolve) => {
+      const onApply = (payload: {
+        transaction_id: string;
+        lights: unknown[];
+      }) => {
+        if (payload.lights.length !== 0) return;
+        hardware.off("hardware-apply-state", onApply);
+        resolve(payload);
+      };
+      hardware.on("hardware-apply-state", onApply);
+    });
 
     const display = client({
       role: "display",
@@ -303,43 +377,29 @@ describe("Socket.IO server foundation", () => {
     expect(server.runtime.state.mode).toBe("idle");
   });
 
-  test("switches hardware off when the last tablet disconnects", async () => {
+  test("applies idle lights when the last tablet disconnects", async () => {
     const [hardware, hardware2] = connectHardwarePair(client);
-    const hardwareConnected = once(hardware, "connect");
-    const hardware2Connected = once(hardware2, "connect");
     hardware.connect();
     hardware2.connect();
-    await Promise.all([hardwareConnected, hardware2Connected]);
+    await waitUntil(() => server.runtime.state.isOnline("hardware"));
+    await Bun.sleep(50);
 
-    const safeOff = new Promise<{ lights: unknown[] }>((resolve) => {
-      hardware.once(
-        "hardware-apply-state",
-        (
-          payload: { transaction_id: string; lights: unknown[] },
-          ack: (result: unknown) => void,
-        ) => {
-          ack({
-            transaction_id: payload.transaction_id,
-            status: "success",
-            applied_at_ms: Date.now(),
-          });
-          resolve(payload);
-        },
-      );
+    const idlePayloads: Array<{ mode?: string; lights: unknown[] }> = [];
+    const idleApply = new Promise<void>((resolve) => {
+      const maybeDone = () => {
+        if (idlePayloads.length >= 2) resolve();
+      };
+      for (const pi of [hardware, hardware2]) {
+        pi.on(
+          "hardware-apply-state",
+          (payload: { mode?: string; lights: unknown[] }) => {
+            if (payload.mode !== "idle") return;
+            idlePayloads.push(payload);
+            maybeDone();
+          },
+        );
+      }
     });
-    hardware2.on(
-      "hardware-apply-state",
-      (
-        payload: { transaction_id: string },
-        ack: (result: unknown) => void,
-      ) => {
-        ack({
-          transaction_id: payload.transaction_id,
-          status: "success",
-          applied_at_ms: Date.now(),
-        });
-      },
-    );
 
     const tablet = client({ role: "tablet", client_id: "tablet-1" });
     const tabletConnected = once(tablet, "connect");
@@ -347,35 +407,27 @@ describe("Socket.IO server foundation", () => {
     await tabletConnected;
     tablet.disconnect();
 
-    expect((await safeOff).lights).toEqual([]);
-    await Bun.sleep(10);
+    await idleApply;
+    expect(idlePayloads).toHaveLength(2);
+    expect(idlePayloads.every((payload) => payload.mode === "idle")).toBe(true);
+    expect(idlePayloads.some((payload) => payload.lights.length > 0)).toBe(
+      true,
+    );
     expect(server.runtime.state.mode).toBe("idle");
   });
 
   test("keeps hardware on when another tablet remains connected", async () => {
     const [hardware, hardware2] = connectHardwarePair(client);
-    const hardwareConnected = once(hardware, "connect");
-    const hardware2Connected = once(hardware2, "connect");
     hardware.connect();
     hardware2.connect();
-    await Promise.all([hardwareConnected, hardware2Connected]);
+    await waitUntil(() => server.runtime.state.isOnline("hardware"));
+    await Bun.sleep(50);
 
     let applyStateCount = 0;
     for (const pi of [hardware, hardware2]) {
-      pi.on(
-        "hardware-apply-state",
-        (
-          payload: { transaction_id: string },
-          ack: (result: unknown) => void,
-        ) => {
-          applyStateCount += 1;
-          ack({
-            transaction_id: payload.transaction_id,
-            status: "success",
-            applied_at_ms: Date.now(),
-          });
-        },
-      );
+      pi.on("hardware-apply-state", () => {
+        applyStateCount += 1;
+      });
     }
 
     const tabletA = client({ role: "tablet", client_id: "tablet-a" });

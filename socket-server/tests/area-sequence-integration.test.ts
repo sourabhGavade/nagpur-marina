@@ -170,6 +170,8 @@ describe("continuous Area sequence", () => {
         server.runtime.state.isOnline("hardware") &&
         server.runtime.state.isOnline("display"),
     );
+    await waitUntil(() => idlePayloads.length >= 2);
+    idlePayloads.length = 0;
   });
 
   afterEach(async () => {
@@ -289,9 +291,16 @@ describe("continuous Area sequence", () => {
     expect(server.runtime.state.activeZoneId).toBe("why-nagpur-marina");
     expect(loopFlag).toBe(false);
 
+    const muteResult = await new Promise<any>((resolve) => {
+      tablet.emit("sequence-mute", resolve);
+    });
+    expect(muteResult.status).toBe("success");
+    expect(server.runtime.getRuntimeStatus().muted).toBe(true);
+
     await waitUntil(() => server.runtime.state.mode === "idle", 1_500);
     expect(server.runtime.state.activeZoneId).toBe("why-nagpur-marina");
     expect(stopPayloads.at(-1)?.hold_last_frame_ms).toBe(TEST_IDLE_HOLD_MS);
+    expect(server.runtime.getRuntimeStatus().muted).toBe(false);
 
     await waitUntil(() => idlePayloads.length >= 2, 1_000);
     expect(idlePayloads.every((payload) => payload.mode === "idle")).toBe(true);

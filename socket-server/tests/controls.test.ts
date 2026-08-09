@@ -88,6 +88,30 @@ describe("Tablet controls", () => {
     acknowledgeReadiness(hardware2, "hardware-readiness-check");
     acknowledgeReadiness(display, "display-readiness-check");
 
+    // Consume connect-time idle apply so later `.once` listeners see command payloads.
+    const connectIdle = Promise.all([
+      new Promise<void>((resolve) => {
+        hardware.once("hardware-apply-state", (payload, ack) => {
+          ack({
+            transaction_id: payload.transaction_id,
+            status: "success",
+            applied_at_ms: Date.now(),
+          });
+          resolve();
+        });
+      }),
+      new Promise<void>((resolve) => {
+        hardware2.once("hardware-apply-state", (payload, ack) => {
+          ack({
+            transaction_id: payload.transaction_id,
+            status: "success",
+            applied_at_ms: Date.now(),
+          });
+          resolve();
+        });
+      }),
+    ]);
+
     tablet.connect();
     hardware.connect();
     hardware2.connect();
@@ -98,6 +122,7 @@ describe("Tablet controls", () => {
         server.runtime.state.isOnline("hardware") &&
         server.runtime.state.isOnline("display"),
     );
+    await connectIdle;
   });
 
   afterEach(async () => {
