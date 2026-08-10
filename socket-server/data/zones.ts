@@ -45,7 +45,7 @@ export const whyNagpurMarina: Zone = {
   subZones: [
     subZoneMainModel10({ intensity: 1 }),
     subZoneMainModel11({ intensity: 1 }),
-    // subZoneMainModel24({ intensity: 1 }),
+    subZoneMainModel24({ intensity: 0.5 }),
     //subZoneClubhouseModel1({ intensity: 1 }),
     //subZoneClubhouseModel2({ intensity: 1 }),
     //subZoneClubhouseModel3({ intensity: 1 }),
@@ -76,7 +76,7 @@ export const masterplanReveal: Zone = {
     subZoneMainModel9({ intensity: 0.2 }),
     subZoneMainModel10({ intensity: 0.2 }),
     subZoneMainModel11({ intensity: 0.2 }),
-    subZoneMainModel24({ intensity: 0.2 }),
+    // subZoneMainModel24({ intensity: 0.2 }),
     subZoneClubhouseModel1(),
     subZoneClubhouseModel2(),
     subZoneClubhouseModel3(),
@@ -192,6 +192,7 @@ export const activeZone: Zone = {
     subZoneMainModel7(),
     subZoneMainModel11({intensity: 0.2}),
     subZoneClubhouseModel7(),
+    subZoneClubhouseModel6({ intensity: 0.2 }),
   ],
 };
 
@@ -207,6 +208,7 @@ export const serenityZone: Zone = {
     subZoneMainModel8(),
     subZoneMainModel11({intensity: 0.2}),
     subZoneClubhouseModel7(),
+    subZoneClubhouseModel6({ intensity: 0.2 }),
   ],
 };
 
@@ -233,6 +235,7 @@ export const neighbourhoodParksOrchards: Zone = {
     subZoneMainModel22(),
     subZoneMainModel23(),
     subZoneClubhouseModel7(),
+    subZoneClubhouseModel6({ intensity: 0.2 }),
   ],
 };
 
@@ -248,6 +251,7 @@ export const marinaReserve: Zone = {
     subZoneMainModel1(),
     subZoneMainModel11({intensity: 0.2}),
     subZoneClubhouseModel7(),
+    subZoneClubhouseModel6({ intensity: 0.2 }),
   ],
 };
 
@@ -263,6 +267,7 @@ export const marinaEuphoria: Zone = {
     subZoneMainModel2(),
     subZoneMainModel11({intensity: 0.2}),
     subZoneClubhouseModel7(),
+    subZoneClubhouseModel6({ intensity: 0.2 }),
   ],
 };
 
@@ -278,6 +283,7 @@ export const marinaGrove: Zone = {
     subZoneMainModel3(),
     subZoneMainModel11({intensity: 0.2}),
     subZoneClubhouseModel7(),
+    subZoneClubhouseModel6({ intensity: 0.2 }),
   ],
 };
 
@@ -293,6 +299,7 @@ export const marinaBayview: Zone = {
     subZoneMainModel4(),
     subZoneMainModel11({intensity: 0.2}),
     subZoneClubhouseModel7(),
+    subZoneClubhouseModel6({ intensity: 0.2 }),
   ],
 };
 
@@ -308,6 +315,7 @@ export const marinaGrand: Zone = {
     subZoneMainModel5(),
     subZoneMainModel11({intensity: 0.2}),
     subZoneClubhouseModel7(),
+    subZoneClubhouseModel6({ intensity: 0.2 }),
   ],
 };
 
@@ -323,6 +331,7 @@ export const marinaRiviera: Zone = {
     subZoneMainModel6(),
     subZoneMainModel11({intensity: 0.2}),
     subZoneClubhouseModel7(),
+    subZoneClubhouseModel6({ intensity: 0.2 }),
   ],
 };
 
