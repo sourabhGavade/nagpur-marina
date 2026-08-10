@@ -107,7 +107,7 @@ const projectBoundary: Lighting = {
   id: "project-boundary",
   name: "Project Boundary",
   sequence_order: 12,
-  subZones: [subZoneMainModel11(), subZoneMainModel24()],
+  subZones: [subZoneMainModel11()],
 };
 
 const orchardsParks: Lighting = {
