@@ -410,6 +410,55 @@ describe("Tablet controls", () => {
     ).toBe(true);
   });
 
+  test("sequence-stop sends all-off when only one Pi is online", async () => {
+    const applyPayloads: HardwareApplyStatePayload[] = [];
+
+    hardware.on("hardware-apply-state", (payload, ack) => {
+      applyPayloads.push(payload);
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        applied_at_ms: Date.now(),
+      });
+    });
+    display.on("stop-video", (payload, ack) => {
+      ack({
+        transaction_id: payload.transaction_id,
+        status: "success",
+        stopped_at_ms: Date.now(),
+      });
+    });
+
+    hardware2.disconnect();
+    await waitUntil(
+      () => server.registry.getHardwareClients().length === 1,
+    );
+
+    server.runtime.state.mode = "zone";
+    server.runtime.state.activeAreaId = 1;
+    server.runtime.state.activeZoneId = "masterplan-reveal";
+
+    const result = await new Promise<any>((resolve) => {
+      tablet.emit("sequence-stop", resolve);
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.error_code).toBe("hardware_offline");
+    expect(server.runtime.state.mode as string).toBe("idle");
+    expect(applyPayloads.length).toBeGreaterThan(0);
+    expect(
+      applyPayloads.every(
+        (payload) =>
+          payload.scope === "system" &&
+          payload.mode === "replace" &&
+          payload.lights.length === 0,
+      ),
+    ).toBe(true);
+    expect(applyPayloads.some((payload) => payload.mode === "idle")).toBe(
+      false,
+    );
+  });
+
   test("broadcasts emergency shutdown repeatedly to both Pis", async () => {
     let emergencyCount = 0;
     hardware.on("hardware-emergency-shutdown", () => {

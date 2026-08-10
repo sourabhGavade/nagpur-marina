@@ -453,12 +453,19 @@ export class RuntimeController {
 
     const failures: unknown[] = [];
     const tasks: Promise<unknown>[] = [];
+    // One physical install: idle only when both Pis are present; otherwise all-off.
+    const bothHardwareOnline =
+      hardwareClients.length >= EXPECTED_HARDWARE_CLIENTS;
 
-    if (hardwareClients.length < EXPECTED_HARDWARE_CLIENTS) {
+    if (!bothHardwareOnline) {
       failures.push(new Error("hardware_offline"));
     }
     for (const hardware of hardwareClients) {
-      tasks.push(this.sendIdleState(hardware));
+      tasks.push(
+        bothHardwareOnline
+          ? this.sendIdleState(hardware)
+          : this.sendAllOff(hardware),
+      );
     }
 
     if (display?.connected) tasks.push(this.stopDisplay(display));
@@ -826,7 +833,7 @@ export class RuntimeController {
     }));
   }
 
-  /** Logo/stop and post-hold idle: mode idle with IDLE_LIGHTS_CONFIG. */
+  /** Logo/stop (both Pis online) and post-hold idle: IDLE_LIGHTS_CONFIG. */
   private async sendIdleState(socket: AppSocket): Promise<void> {
     const transactionId = createTransactionId("safe-idle");
     const partitions = partitionLightsByHardwareClient(
