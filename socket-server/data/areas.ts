@@ -8,7 +8,7 @@ import {
   marinaGrand,
   marinaGrove,
   marinaReserve,
-  marinaRiviera,
+  marinaHorizon,
   masterplanReveal,
   neighbourhoodParksOrchards,
   serenityZone,
@@ -49,7 +49,7 @@ const theMarinaExperience: Area = {
     marinaGrove,
     marinaBayview,
     marinaGrand,
-    marinaRiviera,
+    marinaHorizon,
   ],
 };
 

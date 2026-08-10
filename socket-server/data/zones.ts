@@ -319,10 +319,10 @@ export const marinaGrand: Zone = {
   ],
 };
 
-export const marinaRiviera: Zone = {
-  id: "marina-riviera",
+export const marinaHorizon: Zone = {
+  id: "marina-horizon",
   sequence_order: 6,
-  name: "Marina Riviera",
+  name: "Marina Horizon",
   video_url: `${zoneTVVideoBaseUrl}/16-marina-riviera.mp4`,
   video_duration_ms: 58_000,
   video_crossfade_duration_ms: 500,
@@ -350,5 +350,5 @@ export const zones: Zone[] = [
   marinaGrove,
   marinaBayview,
   marinaGrand,
-  marinaRiviera,
+  marinaHorizon,
 ];
