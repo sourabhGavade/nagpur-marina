@@ -26,9 +26,15 @@ COPY tablet-nextjs/package.json tablet-nextjs/package-lock.json* ./
 RUN npm install
 
 COPY tablet-nextjs/ ./
-# Next inlines NEXT_PUBLIC_* from .env during `next build`
+# Load SITE env as both dotenv file and process env (Turbopack/next build)
 COPY ENVs/ENVs/tablet-nextjs/.env ./.env
-RUN npm run build
+RUN SOCKET_URL="$(grep -E '^NEXT_PUBLIC_SOCKET_URL=' .env | cut -d= -f2- | tr -d '\r')" \
+  && test -n "$SOCKET_URL" \
+  && echo "tablet NEXT_PUBLIC_SOCKET_URL=$SOCKET_URL" \
+  && export NEXT_PUBLIC_SOCKET_URL="$SOCKET_URL" \
+  && npm run build \
+  && grep -R --include='*.js' -q "$SOCKET_URL" .next/static \
+  || (echo "ERROR: built tablet JS does not contain NEXT_PUBLIC_SOCKET_URL=$SOCKET_URL" && exit 1)
 
 # ---------------------------------------------------------------------------
 # Build: TV Next.js (standalone)
@@ -44,7 +50,13 @@ RUN npm install
 
 COPY tv-nextjs/ ./
 COPY ENVs/ENVs/tv-nextjs/.env ./.env
-RUN npm run build
+RUN SOCKET_URL="$(grep -E '^NEXT_PUBLIC_SOCKET_URL=' .env | cut -d= -f2- | tr -d '\r')" \
+  && test -n "$SOCKET_URL" \
+  && echo "tv NEXT_PUBLIC_SOCKET_URL=$SOCKET_URL" \
+  && export NEXT_PUBLIC_SOCKET_URL="$SOCKET_URL" \
+  && npm run build \
+  && grep -R --include='*.js' -q "$SOCKET_URL" .next/static \
+  || (echo "ERROR: built tv JS does not contain NEXT_PUBLIC_SOCKET_URL=$SOCKET_URL" && exit 1)
 
 # ---------------------------------------------------------------------------
 # Runtime: Node (Next standalone) + Bun (socket-server + optional mock)
@@ -52,7 +64,7 @@ RUN npm run build
 FROM node:20-bookworm-slim AS runtime
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl unzip bash \
+  && apt-get install -y --no-install-recommends ca-certificates curl unzip bash psmisc \
   && rm -rf /var/lib/apt/lists/* \
   && curl -fsSL https://bun.sh/install | bash \
   && ln -s /root/.bun/bin/bun /usr/local/bin/bun
@@ -70,6 +82,9 @@ COPY --from=builder-server /app/socket-server/lib /app/server/lib
 COPY --from=builder-server /app/socket-server/utils /app/server/utils
 COPY --from=builder-server /app/socket-server/scripts /app/server/scripts
 COPY --from=builder-server /app/socket-server/.env /app/server/.env
+
+# Normalize env files to LF so entrypoint HOST/PORT parsing never sees CR
+RUN sed -i 's/\r$//' /app/server/.env 2>/dev/null || true
 
 # Tablet standalone + static + public
 COPY --from=builder-tablet /app/tablet-nextjs/.next/standalone /app/tablet
