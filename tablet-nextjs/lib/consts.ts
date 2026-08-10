@@ -1,10 +1,20 @@
 import { LightingModel } from "./types";
 
+/**
+ * Baked at `next build` from ENVs/ENVs/tablet-nextjs/.env
+ * (Caddy Socket.IO: https://192.168.0.111:5001).
+ *
+ * If this is missing, the browser falls back to hostname:4000 which breaks
+ * when the UI is HTTPS via Caddy and sockets only exist as HTTPS on :5001.
+ */
+const configuredSocketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+
 export const socketUrl =
-  process.env.NEXT_PUBLIC_SOCKET_URL ??
-  (typeof window === "undefined"
-    ? "http://localhost:4000"
-    : `${window.location.protocol}//${window.location.hostname}:4000`);
+  configuredSocketUrl && configuredSocketUrl.length > 0
+    ? configuredSocketUrl
+    : typeof window === "undefined"
+      ? "http://localhost:4000"
+      : `${window.location.protocol}//${window.location.hostname}:5001`;
 
 export const sections = [
   {

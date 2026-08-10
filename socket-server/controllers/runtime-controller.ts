@@ -147,10 +147,10 @@ export class RuntimeController {
     }
   }
 
-  /** Last tablet left — clear lights and stop display like other fail-safes. */
+  /** Last tablet left — idle lights on Pis and stop display. */
   onTabletDisconnected(): void {
     if (!this.running || this.registry.tabletCount > 0) return;
-    void this.enterFailSafe(null, null, "tablet disconnected");
+    void this.enterTabletDisconnectedIdle();
   }
 
   onHeartbeat(
@@ -507,6 +507,7 @@ export class RuntimeController {
       );
     }
 
+    this.muted = false;
     this.broadcastRuntimeStatus();
     void this.applyIdleLightsAfterHold(generation);
   }
@@ -613,10 +614,14 @@ export class RuntimeController {
 
       if (role === "hardware") {
         this.state.markHardwareReady(socket.data.client_id);
+        this.broadcastStatus(role);
+        if (this.state.isOnline("hardware")) {
+          void this.applyIdleOnHardwareOnline();
+        }
       } else {
         this.state.markDisplayReady();
+        this.broadcastStatus(role);
       }
-      this.broadcastStatus(role);
     } catch (error) {
       const stillConnected =
         role === "hardware"
@@ -745,6 +750,38 @@ export class RuntimeController {
     }
   }
 
+  /** Last tablet disconnect: idle lights (not all-off) + stop display. */
+  private async enterTabletDisconnectedIdle(): Promise<void> {
+    console.error(`[runtime] entering safe idle: tablet disconnected`);
+    this.state.invalidate();
+    this.broadcastRuntimeStatus();
+
+    const tasks: Promise<unknown>[] = [];
+    const hardwareClients = this.registry.getHardwareClients();
+    const display = this.registry.getDisplay();
+
+    for (const hardware of hardwareClients) {
+      tasks.push(this.sendIdleState(hardware));
+    }
+
+    if (display?.connected) {
+      tasks.push(this.stopDisplay(display));
+    }
+
+    const results = await Promise.allSettled(tasks);
+    for (const result of results) {
+      if (result.status === "rejected") {
+        console.error(
+          `[runtime] tablet-disconnect idle failed: ${
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason)
+          }`,
+        );
+      }
+    }
+  }
+
   private async applyIdleLightsAfterHold(generation: number): Promise<void> {
     const stillCurrent = await this.state.waitFor(
       this.idleHoldLastFrameMs,
@@ -752,6 +789,17 @@ export class RuntimeController {
     );
     if (!stillCurrent || !this.running) return;
 
+    await this.applyIdleToConnectedHardware("idle lights after hold");
+  }
+
+  /** First connect or reconnect once both Pis are ready — idle lights on all. */
+  private async applyIdleOnHardwareOnline(): Promise<void> {
+    if (!this.running || !this.state.isOnline("hardware")) return;
+    await this.applyIdleToConnectedHardware("idle on hardware connect");
+  }
+
+  /** Idle lights on all connected Pis. */
+  private async applyIdleToConnectedHardware(context: string): Promise<void> {
     const hardwareClients = this.registry.getHardwareClients();
     if (hardwareClients.length === 0) return;
 
@@ -761,7 +809,7 @@ export class RuntimeController {
     for (const result of results) {
       if (result.status === "rejected") {
         console.error(
-          `[runtime] idle lights after hold failed: ${
+          `[runtime] ${context} failed: ${
             result.reason instanceof Error
               ? result.reason.message
               : String(result.reason)
@@ -781,7 +829,9 @@ export class RuntimeController {
   /** Logo/stop and post-hold idle: mode idle with IDLE_LIGHTS_CONFIG. */
   private async sendIdleState(socket: AppSocket): Promise<void> {
     const transactionId = createTransactionId("safe-idle");
-    const partitions = partitionLightsByHardwareClient(this.idleLightsPayload());
+    const partitions = partitionLightsByHardwareClient(
+      this.idleLightsPayload(),
+    );
     const lights = partitions[socket.data.client_id] ?? [];
 
     const result = await requestAck({
