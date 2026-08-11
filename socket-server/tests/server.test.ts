@@ -416,6 +416,56 @@ describe("Socket.IO server foundation", () => {
     expect(server.runtime.state.mode).toBe("idle");
   });
 
+  test("sends all-off when last tablet disconnects with only one Pi online", async () => {
+    const [hardware, hardware2] = connectHardwarePair(client);
+    hardware.connect();
+    hardware2.connect();
+    await waitUntil(() => server.runtime.state.isOnline("hardware"));
+    await Bun.sleep(50);
+
+    hardware2.disconnect();
+    await waitUntil(() => server.registry.getHardwareClients().length === 1);
+    // Let fail-safe from the Pi disconnect settle before asserting tablet close.
+    await Bun.sleep(100);
+
+    const applyPayloads: Array<{
+      mode?: string;
+      scope?: string;
+      lights: unknown[];
+    }> = [];
+    hardware.on(
+      "hardware-apply-state",
+      (payload: {
+        mode?: string;
+        scope?: string;
+        lights: unknown[];
+      }) => {
+        applyPayloads.push(payload);
+      },
+    );
+
+    const tablet = client({ role: "tablet", client_id: "tablet-1" });
+    const tabletConnected = once(tablet, "connect");
+    tablet.connect();
+    await tabletConnected;
+    tablet.disconnect();
+
+    await waitUntil(
+      () =>
+        applyPayloads.some(
+          (payload) =>
+            payload.scope === "system" &&
+            payload.mode === "replace" &&
+            payload.lights.length === 0,
+        ),
+    );
+
+    expect(applyPayloads.some((payload) => payload.mode === "idle")).toBe(
+      false,
+    );
+    expect(server.runtime.state.mode).toBe("idle");
+  });
+
   test("keeps hardware on when another tablet remains connected", async () => {
     const [hardware, hardware2] = connectHardwarePair(client);
     hardware.connect();

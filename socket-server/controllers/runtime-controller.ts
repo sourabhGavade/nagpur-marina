@@ -757,7 +757,10 @@ export class RuntimeController {
     }
   }
 
-  /** Last tablet disconnect: idle lights (not all-off) + stop display. */
+  /**
+   * Last tablet disconnect: idle lights only when both Pis are present;
+   * otherwise all-off on whatever hardware is still connected + stop display.
+   */
   private async enterTabletDisconnectedIdle(): Promise<void> {
     console.error(`[runtime] entering safe idle: tablet disconnected`);
     this.state.invalidate();
@@ -766,9 +769,15 @@ export class RuntimeController {
     const tasks: Promise<unknown>[] = [];
     const hardwareClients = this.registry.getHardwareClients();
     const display = this.registry.getDisplay();
+    const bothHardwareOnline =
+      hardwareClients.length >= EXPECTED_HARDWARE_CLIENTS;
 
     for (const hardware of hardwareClients) {
-      tasks.push(this.sendIdleState(hardware));
+      tasks.push(
+        bothHardwareOnline
+          ? this.sendIdleState(hardware)
+          : this.sendAllOff(hardware),
+      );
     }
 
     if (display?.connected) {
