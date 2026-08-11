@@ -546,6 +546,21 @@ button {
   background: rgba(10, 16, 30, 0.55);
 }
 
+.marina-stage::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 38%;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgba(4, 8, 18, 0.82) 0%,
+    rgba(4, 8, 18, 0.45) 42%,
+    transparent 100%
+  );
+}
+
 .marina-stage-fallback {
   position: absolute;
   inset: 0;
