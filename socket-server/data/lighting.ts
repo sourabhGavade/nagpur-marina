@@ -68,9 +68,9 @@ const marinaGrand: Lighting = {
   subZones: [subZoneMainModel5()],
 };
 
-const marinaRiviera: Lighting = {
-  id: "marina-riviera",
-  name: "Marina Riviera",
+const marinaHorizon: Lighting = {
+  id: "marina-horizon",
+  name: "Marina Horizon",
   sequence_order: 6,
   subZones: [subZoneMainModel6()],
 };
@@ -192,7 +192,7 @@ export const lightings: Lighting[] = [
   marinaGrove,
   marinaBayview,
   marinaGrand,
-  marinaRiviera,
+  marinaHorizon,
   activityZone,
   serenityZone,
   waterfrontClubhouse,
