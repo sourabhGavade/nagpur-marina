@@ -16,6 +16,10 @@ export const socketUrl =
       ? "http://localhost:4000"
       : `${window.location.protocol}//${window.location.hostname}:5001`;
 
+/** Same remote lock gist the socket-server polls; `enabled: false` locks the experience. */
+export const REMOTE_ENABLE_CONFIG_URL =
+  "https://gist.githubusercontent.com/sourabhGavade/7f3e32a140551f4af1841fb666033f1f/raw/app-config.json";
+
 export const sections = [
   {
     key: "areas",

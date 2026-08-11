@@ -5,11 +5,13 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTabletContext } from "../contexts/tablet-context";
+import { REMOTE_ENABLE_CONFIG_URL } from "../lib/consts";
 
 type Screen = "splash" | "idle";
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("splash");
+  const [remoteEnabled, setRemoteEnabled] = useState<boolean | null>(null);
   const { connect, connectionState, layout } = useTabletContext();
   const router = useRouter();
   const reduceMotion = useReducedMotion();
@@ -24,6 +26,32 @@ export default function Home() {
       window.clearTimeout(timer);
     };
   }, [reduceMotion]);
+
+  // Check if the remote is enabled
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkRemoteEnabled() {
+      try {
+        const response = await fetch(REMOTE_ENABLE_CONFIG_URL, {
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+
+        const data = (await response.json()) as { enabled?: unknown };
+        if (!cancelled && typeof data.enabled === "boolean") {
+          setRemoteEnabled(data.enabled);
+        }
+      } catch {
+        // Leave unknown; do not show support contact on fetch failure.
+      }
+    }
+
+    void checkRemoteEnabled();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (connectionState === "connected" && layout) {
@@ -114,11 +142,17 @@ export default function Home() {
                 onClick={beginJourney}
                 disabled={
                   connectionState === "connecting" ||
-                  connectionState === "connected"
+                  connectionState === "connected" ||
+                  remoteEnabled === false
                 }
                 whileHover={reduceMotion ? undefined : { scale: 1.02 }}
                 whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-                className="inline-flex h-20 min-w-[min(84vw,300px)] cursor-pointer items-center justify-center gap-3.5 rounded-full border-[1.5px] border-[rgba(212,175,100,0.85)] bg-[rgba(10,16,30,0.55)] px-9 text-[15px] font-semibold tracking-[0.04em] text-white transition-[background,border-color] duration-200 hover:border-[rgba(232,198,120,1)] hover:bg-[rgba(18,26,44,0.72)] focus-visible:outline-2 focus-visible:outline-offset-[5px] focus-visible:outline-[rgba(212,175,100,0.95)] disabled:cursor-default disabled:opacity-80 sm:min-w-[min(72vw,340px)]"
+                className="inline-flex h-20 min-w-[min(84vw,300px)] items-center justify-center gap-3.5 rounded-full 
+                  border-[1.5px] border-[rgba(212,175,100,0.85)] bg-[rgba(10,16,30,0.55)] px-9 text-[15px] 
+                  font-semibold tracking-[0.04em] text-white transition-[background,border-color] duration-200 
+                  hover:border-[rgba(232,198,120,1)] hover:bg-[rgba(18,26,44,0.72)] focus-visible:outline-2 
+                  focus-visible:outline-offset-[5px] focus-visible:outline-[rgba(212,175,100,0.95)] 
+                  disabled:opacity-50 sm:min-w-[min(72vw,340px)] cursor-pointer disabled:cursor-not-allowed"
               >
                 {connectionState === "connecting"
                   ? "Connecting…"
@@ -160,11 +194,26 @@ export default function Home() {
                   </span>
                 )}
 
-                <div className="flex flex-col items-center gap-1 text-sm font-bold">
-                  <p>Please contact support:</p>
-                  <p>Email: <a href="mailto:hoablnagpurmarinasupport@trzy.in" className="font-normal">hoablnagpurmarinasupport@trzy.in</a></p>
-                  <p>Contact: <a href="tel:+916375724545" className="font-normal">+91 6375724545</a></p>
-                </div>
+                {remoteEnabled === false && (
+                  <div className="flex flex-col items-center gap-1 text-sm font-bold">
+                    <p>Please contact support:</p>
+                    <p>
+                      Email:{" "}
+                      <a
+                        href="mailto:hoablnagpurmarinasupport@trzy.in"
+                        className="font-normal"
+                      >
+                        hoablnagpurmarinasupport@trzy.in
+                      </a>
+                    </p>
+                    <p>
+                      Contact:{" "}
+                      <a href="tel:+916375724545" className="font-normal">
+                        +91 6375724545
+                      </a>
+                    </p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.section>
