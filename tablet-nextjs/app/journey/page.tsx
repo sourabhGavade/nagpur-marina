@@ -10,7 +10,13 @@ import { useTabletContext } from "@/contexts/tablet-context";
 import { sections } from "@/lib/consts";
 
 export default function JourneyPage() {
-  const { layout, connectionState, clearLights } = useTabletContext();
+  const {
+    layout,
+    connectionState,
+    hardwareOnline,
+    displayOnline,
+    clearLights,
+  } = useTabletContext();
   const reduceMotion = useReducedMotion();
   const router = useRouter();
   const [clearingLights, setClearingLights] = useState(false);
@@ -126,7 +132,11 @@ export default function JourneyPage() {
               <motion.button
                 type="button"
                 key={section.key}
-                disabled={section.key === "lighting" && clearingLights}
+                disabled={
+                  hardwareOnline !== true ||
+                  displayOnline !== true ||
+                  (section.key === "lighting" && clearingLights)
+                }
                 onClick={() => {
                   if (section.key === "areas") {
                     router.push("/areas");
@@ -145,7 +155,7 @@ export default function JourneyPage() {
                 }}
                 whileHover={reduceMotion ? undefined : { y: -4, scale: 1.01 }}
                 whileTap={reduceMotion ? undefined : { scale: 0.985 }}
-                className="group flex min-h-45 cursor-pointer flex-col justify-between rounded-3xl border-[1.5px] border-[rgba(212,175,100,0.35)] bg-[rgba(10,16,30,0.55)] p-6 text-left transition-[background,border-color] duration-200 hover:border-[rgba(232,198,120,0.85)] hover:bg-[rgba(18,26,44,0.72)] focus-visible:outline-2 focus-visible:outline-offset-[5px] focus-visible:outline-[rgba(212,175,100,0.95)] disabled:cursor-wait disabled:opacity-70 sm:min-h-55 sm:rounded-[28px] sm:p-7"
+                className={`group flex min-h-45 cursor-pointer flex-col justify-between rounded-3xl border-[1.5px] border-[rgba(212,175,100,0.35)] bg-[rgba(10,16,30,0.55)] p-6 text-left transition-[background,border-color,filter,opacity] duration-200 hover:border-[rgba(232,198,120,0.85)] hover:bg-[rgba(18,26,44,0.72)] focus-visible:outline-2 focus-visible:outline-offset-[5px] focus-visible:outline-[rgba(212,175,100,0.95)] disabled:opacity-50 disabled:grayscale sm:min-h-55 sm:rounded-[28px] sm:p-7 ${section.key === "lighting" && clearingLights ? "disabled:cursor-wait disabled:grayscale-0 disabled:pointer-events-auto disabled:opacity-70" : "disabled:cursor-not-allowed"}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-[12px] font-semibold tracking-[0.08em] text-[rgba(212,175,100,0.75)]">

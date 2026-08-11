@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { v4 } from "uuid";
 import type {
@@ -42,6 +43,16 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
   });
   const [errorMessage, setErrorMessage] = useState("");
   const socketRef = useRef<Socket | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const routerRef = useRef(router);
+  const pathnameRef = useRef(pathname);
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   const disconnect = useCallback(() => {
     socketRef.current?.disconnect();
@@ -95,6 +106,9 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         active_lighting_id: null,
         active_element_id: null,
       });
+      if (pathnameRef.current !== "/" && pathnameRef.current !== "/journey") {
+        routerRef.current.replace("/");
+      }
     });
     socket.on("connect_error", (error) => {
       setErrorMessage(error.message || "Unable to reach the server");
@@ -246,6 +260,13 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
     () => emitCommand("sequence-unmute"),
     [emitCommand],
   );
+
+  useEffect(() => {
+    if (pathname === "/" || pathname === "/journey") return;
+    if (hardwareOnline === false || displayOnline === false) {
+      router.replace("/journey");
+    }
+  }, [hardwareOnline, displayOnline, pathname, router]);
 
   useEffect(() => {
     return () => {
