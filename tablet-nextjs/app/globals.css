@@ -552,12 +552,12 @@ button {
 .marina-stage::after {
   content: "";
   position: absolute;
-  inset: auto 0 0;
+  inset: 0 0 auto;
   height: 38%;
   z-index: 2;
   pointer-events: none;
   background: linear-gradient(
-    to top,
+    to bottom,
     rgba(4, 8, 18, 0.82) 0%,
     rgba(4, 8, 18, 0.45) 42%,
     transparent 100%
@@ -590,7 +590,7 @@ button {
 .area-stage-actions {
   position: absolute;
   right: 18px;
-  bottom: 18px;
+  top: 18px;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -940,7 +940,7 @@ button {
 
   .area-stage-actions {
     right: 12px;
-    bottom: 12px;
+    top: 12px;
   }
 
   .areas-header {
