@@ -49,6 +49,11 @@ body {
   will-change: opacity;
 }
 
+.display-shell.hide-cursor,
+.display-shell.hide-cursor * {
+  cursor: none;
+}
+
 .display-audio-unlock {
   position: absolute;
   z-index: 6;

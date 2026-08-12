@@ -28,6 +28,29 @@ export default function DisplayPage() {
   const [playbackState, setPlaybackState] = useState<PlaybackState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [audioUnlocked, setAudioUnlocked] = useState(true);
+  const [hideCursor, setHideCursor] = useState(false);
+
+  useEffect(() => {
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleHide = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => setHideCursor(true), 5_000);
+    };
+
+    const onMouseMove = () => {
+      setHideCursor(false);
+      scheduleHide();
+    };
+
+    scheduleHide();
+    window.addEventListener("mousemove", onMouseMove);
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      window.removeEventListener("mousemove", onMouseMove);
+    };
+  }, []);
 
   useEffect(() => {
     const videoA = videoARef.current;
@@ -528,7 +551,7 @@ export default function DisplayPage() {
   }, []);
 
   return (
-    <main className="display-shell">
+    <main className={`display-shell${hideCursor ? " hide-cursor" : ""}`}>
       <video
         ref={videoARef}
         className="display-video"
