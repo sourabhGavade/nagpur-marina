@@ -187,7 +187,7 @@ export const activeZone: Zone = {
   video_url: `${zoneTVVideoBaseUrl}/8-active-zone.mp4`,
   video_duration_ms: 49_000,
   video_crossfade_duration_ms: 500,
-  tabletImageUrl: `${zoneTabletImageBaseUrl}/active-zone.jpg`,
+  tabletImageUrl: `${zoneTabletImageBaseUrl}/active-zone.png`,
   subZones: [
     subZoneMainModel7(),
     subZoneMainModel11({intensity: 0.2}),
