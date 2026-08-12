@@ -39,7 +39,7 @@ export const whyNagpurMarina: Zone = {
   sequence_order: 2,
   name: "Why Nagpur Marina",
   video_url: `${zoneTVVideoBaseUrl}/2-why-marina.mp4`,
-  video_duration_ms: 58_000,
+  video_duration_ms: 56_423,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/why-nagpur-marina.png`,
   subZones: [
@@ -61,7 +61,7 @@ export const masterplanReveal: Zone = {
   sequence_order: 3,
   name: "Masterplan Reveal",
   video_url: `${zoneTVVideoBaseUrl}/3-masterplan-reveal.mp4`,
-  video_duration_ms: 81_000,
+  video_duration_ms: 77_477,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/masterplan-reveal.png`,
   subZones: [
@@ -92,7 +92,7 @@ export const lifestyleAnchorsIntro: Zone = {
   sequence_order: 1,
   name: "Lifestyle Anchors Intro",
   video_url: `${zoneTVVideoBaseUrl}/4-lifestyle-anchors.mp4`,
-  video_duration_ms: 53_000,
+  video_duration_ms: 53_053,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/lifestyle-anchors-intro.png`,
   subZones: [
@@ -128,7 +128,7 @@ export const waterfrontBeach: Zone = {
   sequence_order: 2,
   name: "Waterfront Beach",
   video_url: `${zoneTVVideoBaseUrl}/5-beach.mp4`,
-  video_duration_ms: 53_000,
+  video_duration_ms: 49_049,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/waterfront-beach.png`,
   subZones: [
@@ -146,7 +146,7 @@ export const waterfrontAmenities: Zone = {
   sequence_order: 3,
   name: "Waterfront Amenities",
   video_url: `${zoneTVVideoBaseUrl}/6-waterfront-amenities.mp4`,
-  video_duration_ms: 62_000,
+  video_duration_ms: 60_427,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/waterfront-amenities.png`,
   subZones: [
@@ -167,7 +167,7 @@ export const clubhouseInterior: Zone = {
   sequence_order: 4,
   name: "Clubhouse Interior",
   video_url: `${zoneTVVideoBaseUrl}/7-clubhouse.mp4`,
-  video_duration_ms: 49_000,
+  video_duration_ms: 50_217,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/clubhouse-interior.png`,
   subZones: [
@@ -185,7 +185,7 @@ export const activeZone: Zone = {
   sequence_order: 5,
   name: "Active Zone",
   video_url: `${zoneTVVideoBaseUrl}/8-active-zone.mp4`,
-  video_duration_ms: 49_000,
+  video_duration_ms: 48_715,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/active-zone.png`,
   subZones: [
@@ -201,7 +201,7 @@ export const serenityZone: Zone = {
   sequence_order: 6,
   name: "Serenity Zone",
   video_url: `${zoneTVVideoBaseUrl}/9-serenity-zone.mp4`,
-  video_duration_ms: 66_000,
+  video_duration_ms: 59_359,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/serenity-zone.jpg`,
   subZones: [
@@ -217,7 +217,7 @@ export const neighbourhoodParksOrchards: Zone = {
   sequence_order: 7,
   name: "Neighbourhood Parks + Orchards",
   video_url: `${zoneTVVideoBaseUrl}/10-parks-orchards.mp4`,
-  video_duration_ms: 66_000,
+  video_duration_ms: 63_664,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/neighbourhood-parks-orchards.png`,
   subZones: [
@@ -244,7 +244,7 @@ export const marinaReserve: Zone = {
   sequence_order: 1,
   name: "Marina Reserve",
   video_url: `${zoneTVVideoBaseUrl}/11-marina-reserve.mp4`,
-  video_duration_ms: 50_000,
+  video_duration_ms: 52_286,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/marina-reserve.png`,
   subZones: [
@@ -260,7 +260,7 @@ export const marinaEuphoria: Zone = {
   sequence_order: 2,
   name: "Marina Euphoria",
   video_url: `${zoneTVVideoBaseUrl}/12-marina-euphoria.mp4`,
-  video_duration_ms: 64_000,
+  video_duration_ms: 65_265,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/marina-euphoria.png`,
   subZones: [
@@ -276,7 +276,7 @@ export const marinaGrove: Zone = {
   sequence_order: 3,
   name: "Marina Grove",
   video_url: `${zoneTVVideoBaseUrl}/13-marina-grove.mp4`,
-  video_duration_ms: 55_000,
+  video_duration_ms: 55_889,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/marina-grove.png`,
   subZones: [
@@ -292,7 +292,7 @@ export const marinaBayview: Zone = {
   sequence_order: 4,
   name: "Marina Bayview",
   video_url: `${zoneTVVideoBaseUrl}/14-marina-bayview.mp4`,
-  video_duration_ms: 63_000,
+  video_duration_ms: 63_080,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/marina-bayview.png`,
   subZones: [
@@ -308,7 +308,7 @@ export const marinaGrand: Zone = {
   sequence_order: 5,
   name: "Marina Grand",
   video_url: `${zoneTVVideoBaseUrl}/15-marina-grand.mp4`,
-  video_duration_ms: 54_000,
+  video_duration_ms: 54_755,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/marina-grand.png`,
   subZones: [
@@ -324,7 +324,7 @@ export const marinaHorizon: Zone = {
   sequence_order: 6,
   name: "Marina Horizon",
   video_url: `${zoneTVVideoBaseUrl}/16-marina-riviera.mp4`,
-  video_duration_ms: 58_000,
+  video_duration_ms: 59_860,
   video_crossfade_duration_ms: 500,
   tabletImageUrl: `${zoneTabletImageBaseUrl}/marina-riviera.png`,
   subZones: [
