@@ -4,15 +4,14 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { RemoteLockContact } from "../components/remote-lock-contact";
 import { useTabletContext } from "../contexts/tablet-context";
-import { REMOTE_ENABLE_CONFIG_URL } from "../lib/consts";
 
 type Screen = "splash" | "idle";
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("splash");
-  const [remoteEnabled, setRemoteEnabled] = useState<boolean | null>(null);
-  const { connect, connectionState, layout } = useTabletContext();
+  const { connect, connectionState, layout, tabletLocked } = useTabletContext();
   const router = useRouter();
   const reduceMotion = useReducedMotion();
 
@@ -26,32 +25,6 @@ export default function Home() {
       window.clearTimeout(timer);
     };
   }, [reduceMotion]);
-
-  // Check if the remote is enabled
-  useEffect(() => {
-    let cancelled = false;
-
-    async function checkRemoteEnabled() {
-      try {
-        const response = await fetch(REMOTE_ENABLE_CONFIG_URL, {
-          cache: "no-store",
-        });
-        if (!response.ok) return;
-
-        const data = (await response.json()) as { enabled?: unknown };
-        if (!cancelled && typeof data.enabled === "boolean") {
-          setRemoteEnabled(data.enabled);
-        }
-      } catch {
-        // Leave unknown; do not show support contact on fetch failure.
-      }
-    }
-
-    void checkRemoteEnabled();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (connectionState === "connected" && layout) {
@@ -143,7 +116,7 @@ export default function Home() {
                 disabled={
                   connectionState === "connecting" ||
                   connectionState === "connected" ||
-                  remoteEnabled === false
+                  tabletLocked
                 }
                 whileHover={reduceMotion ? undefined : { scale: 1.02 }}
                 whileTap={reduceMotion ? undefined : { scale: 0.98 }}
@@ -188,32 +161,13 @@ export default function Home() {
                     Connected to the experience
                   </span>
                 )}
-                {connectionState === "error" && (
+                {connectionState === "error" && !tabletLocked && (
                   <span className="text-[#ff8f84]">
                     Error connecting to the experience
                   </span>
                 )}
 
-                {remoteEnabled === false && (
-                  <div className="flex flex-col items-center gap-1 text-sm font-bold">
-                    <p>Please contact support:</p>
-                    <p>
-                      Email:{" "}
-                      <a
-                        href="mailto:hoablnagpurmarinasupport@trzy.in"
-                        className="font-normal"
-                      >
-                        hoablnagpurmarinasupport@trzy.in
-                      </a>
-                    </p>
-                    <p>
-                      Contact:{" "}
-                      <a href="tel:+916375724545" className="font-normal">
-                        +91 6375724545
-                      </a>
-                    </p>
-                  </div>
-                )}
+                {tabletLocked && <RemoteLockContact />}
               </div>
             </motion.div>
           </motion.section>
