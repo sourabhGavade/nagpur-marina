@@ -32,7 +32,7 @@ export const IDLE_HOLD_LAST_FRAME_MS = 60_000; // 1 minute
 // ================ REMOTE ENABLEMENT CONFIG ================
 export const REMOTE_ENABLE_CONFIG_URL =
   "https://gist.githubusercontent.com/sourabhGavade/7f3e32a140551f4af1841fb666033f1f/raw/app-config.json";
-export const REMOTE_ENABLE_CHECK_INTERVAL_MS = 60 * 1000; // 1 hour
+export const REMOTE_ENABLE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 // ================== IDLE LIGHTS CONFIG ==================
 export const IDLE_LIGHTS_CONFIG = [
