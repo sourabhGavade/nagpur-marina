@@ -7,6 +7,23 @@ interface RemoteEnableConfig {
   enabled: boolean;
 }
 
+export type TabletLockReason = "disabled" | "unavailable";
+
+export interface TabletLockState {
+  locked: boolean;
+  reason: TabletLockReason | null;
+  checkedAtMs: number;
+}
+
+let tabletLockState: TabletLockState = {
+  locked: true,
+  reason: "unavailable",
+  checkedAtMs: 0,
+};
+
+const isRemoteEnableBypassed = () =>
+  Bun.env.NODE_ENV === "development" || Bun.env.NODE_ENV === "test";
+
 async function fetchRemoteEnabled(): Promise<boolean> {
   const response = await fetch(REMOTE_ENABLE_CONFIG_URL, {
     cache: "no-store",
@@ -24,30 +41,78 @@ async function fetchRemoteEnabled(): Promise<boolean> {
     throw new Error('Remote enable config must include a boolean "enabled"');
   }
 
-  const isEnabled =
-    Bun.env.NODE_ENV && Bun.env.NODE_ENV === "development"
-      ? true
-      : data.enabled;
+  const isEnabled = isRemoteEnableBypassed() ? true : data.enabled;
 
   return isEnabled;
 }
 
-/**
- * Returns whether the server is allowed to run.
- * Network / parse failures keep the previous known state (fail-open after start).
- */
-export async function assertRemoteEnabledOrThrow(): Promise<void> {
-  const enabled = await fetchRemoteEnabled();
+async function evaluateTabletLockState(): Promise<TabletLockState> {
+  const checkedAtMs = Date.now();
 
-  if (!enabled) {
-    throw new Error("Server locked: remote config has enabled=false");
+  if (isRemoteEnableBypassed()) {
+    return {
+      locked: false,
+      reason: null,
+      checkedAtMs,
+    };
   }
 
-  console.info("[remote-enable] enabled=true");
+  try {
+    const enabled = await fetchRemoteEnabled();
+
+    if (!enabled) {
+      return {
+        locked: true,
+        reason: "disabled",
+        checkedAtMs,
+      };
+    }
+
+    return {
+      locked: false,
+      reason: null,
+      checkedAtMs,
+    };
+  } catch {
+    return {
+      locked: true,
+      reason: "unavailable",
+      checkedAtMs,
+    };
+  }
+}
+
+function logTabletLockState(state: TabletLockState): void {
+  if (state.locked) {
+    console.warn(
+      `[remote-enable] tablet lock active (${state.reason}); TV and hardware unaffected`,
+    );
+    return;
+  }
+
+  console.info("[remote-enable] tablet unlocked");
+}
+
+export function isTabletLocked(): boolean {
+  if (isRemoteEnableBypassed()) {
+    return false;
+  }
+
+  return tabletLockState.locked;
+}
+
+export function getTabletLockState(): TabletLockState {
+  return tabletLockState;
+}
+
+export async function refreshTabletLockState(): Promise<TabletLockState> {
+  tabletLockState = await evaluateTabletLockState();
+  logTabletLockState(tabletLockState);
+  return tabletLockState;
 }
 
 export function startRemoteEnableWatcher(
-  onDisabled: () => void | Promise<void>,
+  onTabletLocked: (state: TabletLockState) => void | Promise<void>,
   intervalMs = REMOTE_ENABLE_CHECK_INTERVAL_MS,
 ): () => void {
   let stopped = false;
@@ -55,20 +120,14 @@ export function startRemoteEnableWatcher(
   const check = async () => {
     if (stopped) return;
 
-    try {
-      const enabled = await fetchRemoteEnabled();
+    const previousLocked = tabletLockState.locked;
+    tabletLockState = await evaluateTabletLockState();
+    logTabletLockState(tabletLockState);
 
-      if (!enabled && !stopped) {
-        console.error("[remote-enable] enabled=false; locking server");
-        await onDisabled();
-      } else {
-        console.info("[remote-enable] enabled=true");
-      }
-    } catch (error) {
-      console.warn(
-        "[remote-enable] check failed; keeping server running:",
-        error instanceof Error ? error.message : error,
-      );
+    if (tabletLockState.locked) {
+      await onTabletLocked(tabletLockState);
+    } else if (previousLocked) {
+      console.info("[remote-enable] tablets may connect again");
     }
   };
 

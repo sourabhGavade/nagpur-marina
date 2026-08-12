@@ -72,6 +72,7 @@ export interface TabletContextValue {
   displayOnline: boolean | null;
   runtimeStatus: RuntimeStatus;
   errorMessage: string;
+  tabletLocked: boolean;
   connect: () => void;
   disconnect: () => void;
   activateArea: (areaId: Area["id"]) => Promise<CommandResult>;

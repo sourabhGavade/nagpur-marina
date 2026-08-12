@@ -23,6 +23,8 @@ import {
   SocketHandshakeAuthSchema,
   validateConfig,
 } from "../utils/validation.ts";
+import { isTabletLocked } from "./remote-enable.ts";
+import type { TabletLockReason } from "./remote-enable.ts";
 
 export interface SocketServerOptions {
   corsOrigin?: string | string[];
@@ -45,6 +47,7 @@ export interface SocketServer {
   config: AppConfig;
   listen(port?: number, hostname?: string): Promise<number>;
   close(): Promise<void>;
+  disconnectAllTablets(reason: TabletLockReason): void;
 }
 
 const TABLET_ROOM = "role:tablet";
@@ -101,6 +104,16 @@ export function createSocketServer(
 
     try {
       registry.assertRoleAvailable(result.data.role, result.data.client_id);
+
+      if (result.data.role === "tablet" && isTabletLocked()) {
+        const error = new Error("tablet_locked") as Error & {
+          data?: unknown;
+        };
+        error.data = { error_code: "tablet_locked" };
+        next(error);
+        return;
+      }
+
       socket.data = result.data;
       next();
     } catch (cause) {
@@ -176,6 +189,13 @@ export function createSocketServer(
 
   runtime.start();
 
+  const disconnectAllTablets = (reason: TabletLockReason) => {
+    for (const socket of registry.getTablets()) {
+      socket.emit("tablet-locked", { reason });
+      socket.disconnect(true);
+    }
+  };
+
   return {
     httpServer,
     io,
@@ -183,6 +203,7 @@ export function createSocketServer(
     runtime,
     controls,
     config: appConfig,
+    disconnectAllTablets,
     listen(port = 4000, hostname = "0.0.0.0") {
       return new Promise((resolve, reject) => {
         const onError = (error: Error) => {

@@ -105,6 +105,10 @@ export class ClientRegistry {
     return this.tablets.size;
   }
 
+  getTablets(): AppSocket[] {
+    return [...this.tablets.values()].filter((socket) => socket.connected);
+  }
+
   get hardwareOnline(): boolean {
     return this.getHardwareClients().length === EXPECTED_HARDWARE_CLIENTS;
   }

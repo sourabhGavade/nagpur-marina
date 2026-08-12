@@ -391,11 +391,16 @@ export interface TabletToServerEvents {
   "global-emergency-stop": () => void;
 }
 
+export interface TabletLockedPayload {
+  reason: "disabled" | "unavailable";
+}
+
 export interface ServerToTabletEvents {
   "system-layout": (payload: AppConfig) => void;
   "hardware-status": (payload: DeviceStatus) => void;
   "display-status": (payload: DeviceStatus) => void;
   "runtime-status": (payload: RuntimeStatus) => void;
+  "tablet-locked": (payload: TabletLockedPayload) => void;
 }
 
 export interface ServerToHardwareEvents {
