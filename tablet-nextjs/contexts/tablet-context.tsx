@@ -23,6 +23,7 @@ import type {
   CommandResult,
 } from "@/lib/types";
 import { socketUrl } from "@/lib/consts";
+import { isTabletLockedConnectError } from "@/lib/remote-lock";
 
 const TabletContext = createContext<TabletContextValue | null>(null);
 
@@ -42,6 +43,8 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
     active_element_id: null,
   });
   const [errorMessage, setErrorMessage] = useState("");
+  const [tabletLocked, setTabletLocked] = useState(false);
+  const tabletLockedRef = useRef(false);
   const socketRef = useRef<Socket | null>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -71,7 +74,39 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const applyTabletLock = useCallback(() => {
+    tabletLockedRef.current = true;
+    setTabletLocked(true);
+    const socket = socketRef.current;
+    if (socket) {
+      socket.io.opts.reconnection = false;
+      socket.removeAllListeners();
+      socket.disconnect();
+      socketRef.current = null;
+    }
+    setConnectionState("idle");
+    setHardwareOnline(null);
+    setDisplayOnline(null);
+    setRuntimeStatus({
+      mode: "idle",
+      playback_state: "idle",
+      muted: false,
+      active_area_id: null,
+      active_zone_id: null,
+      active_lighting_id: null,
+      active_element_id: null,
+    });
+    setErrorMessage("");
+    if (pathnameRef.current !== "/") {
+      routerRef.current.replace("/");
+    }
+  }, []);
+
   const connect = useCallback(() => {
+    if (tabletLockedRef.current) {
+      return;
+    }
+
     if (socketRef.current?.connected || connectionState === "connecting") {
       return;
     }
@@ -92,7 +127,12 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
 
     socketRef.current = socket;
 
-    socket.on("connect", () => setConnectionState("connected"));
+    socket.on("connect", () => {
+      tabletLockedRef.current = false;
+      setTabletLocked(false);
+      setConnectionState("connected");
+      setErrorMessage("");
+    });
     socket.on("disconnect", () => {
       setConnectionState("idle");
       setHardwareOnline(null);
@@ -111,8 +151,16 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
       }
     });
     socket.on("connect_error", (error) => {
+      if (isTabletLockedConnectError(error) || tabletLockedRef.current) {
+        applyTabletLock();
+        return;
+      }
+
       setErrorMessage(error.message || "Unable to reach the server");
       setConnectionState("error");
+    });
+    socket.on("tablet-locked", () => {
+      applyTabletLock();
     });
     socket.on("system-layout", (data: AppConfig) => {
       setLayout(data);
@@ -128,7 +176,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
     });
 
     socket.connect();
-  }, [connectionState]);
+  }, [applyTabletLock, connectionState]);
 
   const emitCommand = useCallback(
     (
@@ -283,6 +331,7 @@ export function TabletContextProvider({ children }: { children: ReactNode }) {
         displayOnline,
         runtimeStatus,
         errorMessage,
+        tabletLocked,
         connect,
         disconnect,
         activateArea,

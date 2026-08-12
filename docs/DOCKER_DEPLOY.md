@@ -92,11 +92,12 @@ docker run -d --name nagpur-marina --restart unless-stopped ^
 - **Firewall**: allow inbound TCP 3000, 3001, 4000 if other devices connect
 - **Caddy**: reverse_proxy to `127.0.0.1:3000|3001|4000`; keep WebSocket support for 4000
 
-## Remote enable (kill switch)
+## Remote enable (tablet lock)
 
 The socket server calls the remote config URL at boot and every hour
 (`socket-server/lib/consts.ts`). The host needs **outbound HTTPS**. If the
-gist returns `enabled: false`, the process stops.
+gist returns `enabled: false` or is unreachable, **tablets are locked** (contact
+support UI) and the server logs a warning. TV and hardware keep running.
 
 ## Dev without Docker
 
@@ -129,7 +130,7 @@ docker rm -f nagpur-marina-test
 | Symptom | Check |
 |---|---|
 | `docker run` fails — port in use | Stop old bun/Next or `docker rm -f nagpur-marina` |
-| Server exits immediately | `docker logs nagpur-marina` — often remote-enable / no internet |
+| Server exits immediately | `docker logs nagpur-marina` — port/env issues; remote lock no longer stops the server |
 | `hardware_offline` | Real Pis offline, or turn on mock, not both |
 | Image missing on site | Place `nagpur-marina.tar` next to `run.bat` |
 | Caddy no traffic | Confirm upstreams are still localhost:3000/3001/4000 |

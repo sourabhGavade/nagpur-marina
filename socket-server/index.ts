@@ -1,8 +1,8 @@
+import { createSocketServer } from "./lib/server.ts";
 import {
-  assertRemoteEnabledOrThrow,
+  refreshTabletLockState,
   startRemoteEnableWatcher,
 } from "./lib/remote-enable.ts";
-import { createSocketServer } from "./lib/server.ts";
 
 const port = Number(Bun.env.PORT ?? 4000);
 const hostname = Bun.env.HOST ?? "0.0.0.0";
@@ -11,11 +11,11 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535) {
   throw new Error("PORT must be an integer from 1 through 65535");
 }
 
-await assertRemoteEnabledOrThrow();
-
 const server = createSocketServer({
   corsOrigin: Bun.env.CORS_ORIGIN ?? "*",
 });
+
+await refreshTabletLockState();
 
 await server.listen(port, hostname);
 console.info(`Socket.IO server listening on http://${hostname}:${port}`);
@@ -33,9 +33,9 @@ async function shutdown(signal: string): Promise<void> {
   process.exit(0);
 }
 
-stopRemoteEnableWatcher = startRemoteEnableWatcher(() =>
-  shutdown("remote-enable-lock"),
-);
+stopRemoteEnableWatcher = startRemoteEnableWatcher((state) => {
+  server.disconnectAllTablets(state.reason ?? "unavailable");
+});
 
 process.once("SIGINT", () => void shutdown("SIGINT"));
 process.once("SIGTERM", () => void shutdown("SIGTERM"));
