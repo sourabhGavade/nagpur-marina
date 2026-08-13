@@ -27,7 +27,7 @@ export const zoneTabletImageBaseUrl = "/zone-tablet-images";
 export const zoneTVVideoBaseUrl = "/zone-tv-videos";
 
 /** After natural finish, hold last video frame before idle loop. */
-export const IDLE_HOLD_LAST_FRAME_MS = 60_000; // 1 minute
+export const IDLE_HOLD_LAST_FRAME_MS = 10_000; // 10 sec
 
 // ================ REMOTE ENABLEMENT CONFIG ================
 export const REMOTE_ENABLE_CONFIG_URL =
