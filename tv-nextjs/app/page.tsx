@@ -106,6 +106,30 @@ export default function DisplayPage() {
       }
     };
 
+    // Manual restart avoids native `loop` audio stutter at wrap points.
+    const onIdleEnded = (event: Event) => {
+      const video = event.currentTarget as HTMLVideoElement;
+      if (playbackStateRef.current !== "idle") return;
+      if (videos[activeIndexRef.current] !== video) return;
+      if (!video.currentSrc.includes(idleVideoUrl)) return;
+
+      video.currentTime = 0;
+      applyActiveMute(video);
+      void video.play().catch((error: unknown) => {
+        if (playbackStateRef.current !== "idle") return;
+        const message =
+          error instanceof Error ? error.message : "Idle video failed";
+        setRuntimeState("error");
+        setErrorMessage(message);
+      });
+    };
+
+    // Add the idle video event listeners.
+    for (const video of videos) {
+      video.addEventListener("ended", onIdleEnded);
+    }
+
+    // Play the idle video.
     const playIdleVideo = () => {
       clearIdleHoldTimer();
       if (playTimerRef.current) {
@@ -117,7 +141,6 @@ export default function DisplayPage() {
       const previous = videos[previousIndex];
       const alreadyIdle =
         playbackStateRef.current === "idle" &&
-        previous.loop &&
         !previous.paused &&
         previous.currentSrc.includes(idleVideoUrl);
 
@@ -135,13 +158,14 @@ export default function DisplayPage() {
       const idle = videos[idleIndex];
 
       idle.pause();
-      idle.loop = true;
+      idle.loop = false;  // Disable looping to prevent stutter at wrap points.
       applyActiveMute(idle);
       idle.style.transition = "none";
       if (idle !== previous) {
         idle.style.opacity = "0";
       }
 
+      // Finish the idle video.
       const finishIdle = async () => {
         if (requestId !== idleRequestRef.current) return;
         try {
@@ -542,10 +566,14 @@ export default function DisplayPage() {
       window.clearInterval(heartbeat);
       // Clear the play timer.
       if (playTimerRef.current) clearTimeout(playTimerRef.current);
-      // Remove the gesture listeners.
+      // Remove the idle video event listeners.
+      for (const video of videos) {
+        video.removeEventListener("ended", onIdleEnded);
+      }
+      // Remove the gesture event listeners.
       window.removeEventListener("pointerdown", onGesture);
       window.removeEventListener("keydown", onGesture);
-      // Disconnect from the server.
+      // Disconnect from the server and clear the socket.
       socket.disconnect();
     };
   }, []);
