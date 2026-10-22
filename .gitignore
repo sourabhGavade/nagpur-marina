@@ -5,5 +5,5 @@ dist/
 ENVs/
 /dist
 
-tv-nextjs/public/
+
 *.mp4
