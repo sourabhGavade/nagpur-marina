@@ -49,6 +49,14 @@ body {
   will-change: opacity;
 }
 
+.display-idle-audio {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .display-shell.hide-cursor,
 .display-shell.hide-cursor * {
   cursor: none;

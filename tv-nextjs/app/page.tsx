@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
-import { socketUrl, idleVideoUrl, idleCrossfadeDurationMs } from "@/lib/consts";
+import {
+  socketUrl,
+  idleVideoUrl,
+  idleAudioUrl,
+  idleCrossfadeDurationMs,
+} from "@/lib/consts";
 import type {
   PlaybackState,
   PrepareVideoPayload,
@@ -13,6 +18,7 @@ import type {
 export default function DisplayPage() {
   const videoARef = useRef<HTMLVideoElement>(null);
   const videoBRef = useRef<HTMLVideoElement>(null);
+  const idleAudioRef = useRef<HTMLAudioElement>(null);
   const activeIndexRef = useRef(0);
   const preparedIndexRef = useRef<number | null>(null);
   const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,7 +61,8 @@ export default function DisplayPage() {
   useEffect(() => {
     const videoA = videoARef.current;
     const videoB = videoBRef.current;
-    if (!videoA || !videoB) return;
+    const idleAudio = idleAudioRef.current;
+    if (!videoA || !videoB || !idleAudio) return;
 
     const videos: [HTMLVideoElement, HTMLVideoElement] = [videoA, videoB];
     startedAtRef.current = Date.now();
@@ -66,6 +73,94 @@ export default function DisplayPage() {
     const applyActiveMute = (video: HTMLVideoElement) => {
       video.volume = 1;
       video.muted = effectiveMuted();
+      idleAudio.volume = 1;
+      idleAudio.muted = effectiveMuted();
+    };
+
+    // Video is the clock. This generation drops stale play() calls after a stop.
+    let soundtrackGeneration = 0;
+    let soundtrackActive = false;
+    const soundtrackDriftSec = 0.15;
+
+    const isIdleSource = (video: HTMLVideoElement) =>
+      video.currentSrc.includes(idleVideoUrl);
+
+    const stopIdleSoundtrack = () => {
+      soundtrackActive = false;
+      soundtrackGeneration += 1;
+      idleAudio.pause();
+    };
+
+    const beginIdleSoundtrack = (
+      video: HTMLVideoElement,
+      atSeconds = video.currentTime,
+    ) => {
+      const generation = ++soundtrackGeneration;
+      soundtrackActive = true;
+      idleAudio.volume = 1;
+      idleAudio.muted = effectiveMuted();
+
+      const target = Number.isFinite(atSeconds) ? atSeconds : 0;
+      try {
+        if (Math.abs(idleAudio.currentTime - target) > 0.05) {
+          idleAudio.currentTime = target;
+        }
+      } catch {
+        // Metadata may not be ready the first time the loop starts.
+      }
+
+      return idleAudio.play().then(() => {
+        if (generation !== soundtrackGeneration || !soundtrackActive) {
+          if (!soundtrackActive) idleAudio.pause();
+          return;
+        }
+        idleAudio.volume = 1;
+        idleAudio.muted = effectiveMuted();
+      }).catch((error: unknown) => {
+        if (generation !== soundtrackGeneration || !soundtrackActive) return;
+        throw error;
+      });
+    };
+
+    const correctIdleSoundtrackDrift = (video: HTMLVideoElement) => {
+      if (!soundtrackActive) return;
+      if (
+        playbackStateRef.current === "playing" ||
+        playbackStateRef.current === "paused"
+      ) {
+        return;
+      }
+      if (videos[activeIndexRef.current] !== video) return;
+      if (!isIdleSource(video) || video.paused || video.seeking) return;
+      if (idleAudio.seeking) return;
+
+      idleAudio.muted = effectiveMuted();
+      const target = video.currentTime;
+      if (!Number.isFinite(target)) return;
+
+      const drifted =
+        Math.abs(idleAudio.currentTime - target) > soundtrackDriftSec;
+      const soundtrackStopped = idleAudio.paused || idleAudio.ended;
+      if (!soundtrackStopped && !drifted) return;
+
+      try {
+        if (Math.abs(idleAudio.currentTime - target) > 0.05) {
+          idleAudio.currentTime = target;
+        }
+      } catch {
+        return;
+      }
+
+      if (soundtrackStopped) {
+        const generation = soundtrackGeneration;
+        void idleAudio.play().then(() => {
+          if (generation !== soundtrackGeneration || !soundtrackActive) {
+            if (!soundtrackActive) idleAudio.pause();
+          }
+        }).catch(() => {
+          // The loop restart and the unlock gesture retry playback.
+        });
+      }
     };
 
     const unlockAudio = () => {
@@ -81,6 +176,15 @@ export default function DisplayPage() {
         !active.paused
       ) {
         applyActiveMute(active);
+        if (
+          playbackStateRef.current === "idle" &&
+          isIdleSource(active) &&
+          (idleAudio.paused || idleAudio.ended)
+        ) {
+          void beginIdleSoundtrack(active).catch(() => {
+            // Leave the idle picture up; a later loop restart retries sound.
+          });
+        }
       }
     };
 
@@ -106,27 +210,42 @@ export default function DisplayPage() {
       }
     };
 
-    // Manual restart avoids native `loop` audio stutter at wrap points.
+    // Manual restart avoids native `loop` stutter at the wrap point.
+    // The silent video is the clock; the soundtrack seeks and restarts with it.
     const onIdleEnded = (event: Event) => {
       const video = event.currentTarget as HTMLVideoElement;
       if (playbackStateRef.current !== "idle") return;
       if (videos[activeIndexRef.current] !== video) return;
-      if (!video.currentSrc.includes(idleVideoUrl)) return;
+      if (!isIdleSource(video)) return;
 
       video.currentTime = 0;
       applyActiveMute(video);
-      void video.play().catch((error: unknown) => {
-        if (playbackStateRef.current !== "idle") return;
-        const message =
-          error instanceof Error ? error.message : "Idle video failed";
-        setRuntimeState("error");
-        setErrorMessage(message);
-      });
+      void Promise.all([video.play(), beginIdleSoundtrack(video, 0)]).catch(
+        (error: unknown) => {
+          if (playbackStateRef.current !== "idle") return;
+          if (videos[activeIndexRef.current] !== video) return;
+          stopIdleSoundtrack();
+          const message =
+            error instanceof Error ? error.message : "Idle video failed";
+          setRuntimeState("error");
+          setErrorMessage(message);
+        },
+      );
+    };
+
+    const onIdleTimeUpdate = (event: Event) => {
+      correctIdleSoundtrackDrift(event.currentTarget as HTMLVideoElement);
+    };
+
+    const onIdlePlaying = (event: Event) => {
+      correctIdleSoundtrackDrift(event.currentTarget as HTMLVideoElement);
     };
 
     // Add the idle video event listeners.
     for (const video of videos) {
       video.addEventListener("ended", onIdleEnded);
+      video.addEventListener("timeupdate", onIdleTimeUpdate);
+      video.addEventListener("playing", onIdlePlaying);
     }
 
     // Play the idle video.
@@ -142,12 +261,19 @@ export default function DisplayPage() {
       const alreadyIdle =
         playbackStateRef.current === "idle" &&
         !previous.paused &&
-        previous.currentSrc.includes(idleVideoUrl);
+        isIdleSource(previous);
 
       if (alreadyIdle) {
         preparedIndexRef.current = null;
         setRuntimeState("idle", null);
         setErrorMessage("");
+        if (!soundtrackActive || idleAudio.paused || idleAudio.ended) {
+          void beginIdleSoundtrack(previous).catch(() => {
+            // The picture is already looping; the next wrap retries sound.
+          });
+        } else {
+          idleAudio.muted = effectiveMuted();
+        }
         return;
       }
 
@@ -171,9 +297,20 @@ export default function DisplayPage() {
         try {
           idle.currentTime = 0;
           applyActiveMute(idle);
-          await idle.play();
+          await Promise.all([idle.play(), beginIdleSoundtrack(idle, 0)]);
           applyActiveMute(idle);
-          if (requestId !== idleRequestRef.current) return;
+          if (requestId !== idleRequestRef.current) {
+            const active = videos[activeIndexRef.current];
+            const keepSoundtrack =
+              active === idle &&
+              !idle.paused &&
+              isIdleSource(idle) &&
+              idle.style.opacity === "1" &&
+              playbackStateRef.current !== "playing" &&
+              playbackStateRef.current !== "paused";
+            if (!keepSoundtrack) stopIdleSoundtrack();
+            return;
+          }
 
           const duration = idleCrossfadeDurationMs;
           idle.style.transition = `opacity ${duration}ms linear`;
@@ -194,7 +331,20 @@ export default function DisplayPage() {
           setRuntimeState("idle", null);
           setErrorMessage("");
         } catch (error) {
-          if (requestId !== idleRequestRef.current) return;
+          if (requestId !== idleRequestRef.current) {
+            const active = videos[activeIndexRef.current];
+            const keepSoundtrack =
+              active === idle &&
+              !idle.paused &&
+              isIdleSource(idle) &&
+              idle.style.opacity === "1" &&
+              playbackStateRef.current !== "playing" &&
+              playbackStateRef.current !== "paused";
+            if (!keepSoundtrack) stopIdleSoundtrack();
+            return;
+          }
+          stopIdleSoundtrack();
+          idle.pause();
           const message =
             error instanceof Error ? error.message : "Idle video failed";
           setRuntimeState("error");
@@ -229,6 +379,7 @@ export default function DisplayPage() {
 
         const active = videos[activeIndexRef.current];
         active.pause();
+        stopIdleSoundtrack();
         // Leave currentTime at end so the last frame stays visible.
         preparedIndexRef.current = null;
         setRuntimeState("idle", null);
@@ -392,6 +543,7 @@ export default function DisplayPage() {
               next.style.transition = `opacity ${duration}ms linear`;
               previous.style.transition = `opacity ${duration}ms linear`;
               previous.muted = true;
+              stopIdleSoundtrack();
               next.style.opacity = "1";
               previous.style.opacity = "0";
 
@@ -567,8 +719,11 @@ export default function DisplayPage() {
       // Clear the play timer.
       if (playTimerRef.current) clearTimeout(playTimerRef.current);
       // Remove the idle video event listeners.
+      stopIdleSoundtrack();
       for (const video of videos) {
         video.removeEventListener("ended", onIdleEnded);
+        video.removeEventListener("timeupdate", onIdleTimeUpdate);
+        video.removeEventListener("playing", onIdlePlaying);
       }
       // Remove the gesture event listeners.
       window.removeEventListener("pointerdown", onGesture);
@@ -590,6 +745,12 @@ export default function DisplayPage() {
         ref={videoBRef}
         className="display-video"
         playsInline
+        preload="auto"
+      />
+      <audio
+        ref={idleAudioRef}
+        className="display-idle-audio"
+        src={idleAudioUrl}
         preload="auto"
       />
 
